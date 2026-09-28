@@ -1,0 +1,663 @@
+/* ==========================================================
+   Admin Panel — Private Messages UI
+   Column 1: dark navy nav rail (Admin Panel)
+   Column 2: member list panel
+   Column 3: private chat canvas (pink glow + sparkle, reused
+             look from the community chat bubbles)
+   ========================================================== */
+
+:root {
+  --nav-top: #1b2140;
+  --nav-bottom: #12162c;
+  --panel-top: #241b3d;
+  --panel-bottom: #171226;
+  --canvas-a: #caa3c4;
+  --canvas-b: #7a5f96;
+  --canvas-c: #4a3a66;
+  --accent-pink: #ec5fa3;
+  --accent-purple: #9a5fd1;
+  --accent-cyan: #7fd9ff;
+  --accent-gold: #f0b23c;
+  --text-on-dark: #f4eefb;
+  --text-on-dark-muted: #b3a6c4;
+  --text-on-light: #241a33;
+  --text-on-light-muted: #6b5b7c;
+  --online: #37d67a;
+  --offline: #8a7f92;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--nav-bottom);
+  color: var(--text-on-dark);
+}
+
+/* Hide scrollbars, keep scrolling functional */
+.member-panel,
+.chat-messages {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.member-panel::-webkit-scrollbar,
+.chat-messages::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- App shell ---------- */
+
+.admin-chat-app {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1040;
+}
+
+.panel-toggle-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-on-light);
+  font-size: 1.25rem;
+  padding: 0.2rem 0.4rem;
+  cursor: pointer;
+}
+
+/* ---------- Column 1: Admin nav rail ---------- */
+
+.admin-nav-panel {
+  width: 190px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, var(--nav-top) 0%, var(--nav-bottom) 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 0.9rem;
+  position: relative;
+  overflow: hidden;
+  z-index: 1050;
+  transition: transform 0.28s ease;
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-bottom: 1.1rem;
+  margin-bottom: 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.brand-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple));
+  box-shadow: 0 0 14px rgba(236, 95, 163, 0.5);
+  color: #fff;
+}
+
+.brand-name {
+  font-weight: 600;
+  font-size: 0.98rem;
+  color: var(--text-on-dark);
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-on-dark-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-on-dark);
+}
+
+.admin-nav-item.active {
+  background: linear-gradient(90deg, rgba(236, 95, 163, 0.85), rgba(154, 95, 209, 0.55));
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(236, 95, 163, 0.35);
+}
+
+.nav-icon {
+  font-size: 0.95rem;
+  width: 1.2rem;
+  display: inline-flex;
+  justify-content: center;
+}
+
+/* faint decorative circuit-line texture at the bottom of the nav rail */
+.circuit-decor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 45%;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(236, 95, 163, 0.6) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(236, 95, 163, 0.6) 1px, transparent 1px);
+  background-size: 26px 26px;
+  -webkit-mask-image: linear-gradient(to top, black, transparent);
+  mask-image: linear-gradient(to top, black, transparent);
+}
+
+/* ---------- Column 2: member list panel ---------- */
+
+.member-panel {
+  width: 260px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, var(--panel-top) 0%, var(--panel-bottom) 100%);
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  padding: 1.1rem 0.9rem;
+  overflow-y: auto;
+  z-index: 1045;
+  transition: transform 0.28s ease;
+}
+
+.member-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.member-panel-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-on-dark);
+}
+
+.member-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 0.5rem 0.85rem;
+  margin-bottom: 0.9rem;
+  color: var(--text-on-dark-muted);
+}
+
+.member-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-on-dark);
+  font-size: 0.86rem;
+}
+
+.member-search input::placeholder {
+  color: var(--text-on-dark-muted);
+}
+
+.member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.member-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.member-row.active {
+  background: linear-gradient(90deg, rgba(236, 95, 163, 0.28), rgba(154, 95, 209, 0.2));
+  box-shadow: inset 0 0 0 1px rgba(236, 95, 163, 0.4);
+}
+
+.member-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.member-row-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-on-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.member-row-status {
+  font-size: 0.74rem;
+  color: var(--text-on-dark-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* ---------- Column 3: chat ---------- */
+
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100vh;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.5rem;
+  background: #fbfaff;
+  border-bottom: 1px solid rgba(36, 26, 51, 0.08);
+  flex-shrink: 0;
+}
+
+.chat-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.chat-header-name {
+  font-size: 1.02rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-on-light);
+}
+
+.chat-header-status {
+  font-size: 0.78rem;
+  color: var(--text-on-light-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.icon-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-on-light-muted);
+  font-size: 1.15rem;
+  padding: 0.3rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.icon-btn:hover {
+  color: var(--accent-pink);
+}
+
+/* ---------- Chat canvas: glow + sparkle background ---------- */
+
+.chat-messages-wrapper {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: radial-gradient(120% 100% at 10% 0%, var(--canvas-a) 0%, var(--canvas-b) 45%, var(--canvas-c) 100%);
+}
+
+.sparkle-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 18%, #fff 100%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 28% 62%, #fff 100%, transparent 100%),
+    radial-gradient(1px 1px at 44% 30%, #fff 100%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 63% 75%, #fff 100%, transparent 100%),
+    radial-gradient(1px 1px at 78% 22%, #fff 100%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 88% 55%, #fff 100%, transparent 100%),
+    radial-gradient(1px 1px at 52% 88%, #fff 100%, transparent 100%),
+    radial-gradient(1px 1px at 20% 90%, #fff 100%, transparent 100%);
+  background-repeat: no-repeat;
+}
+
+.glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glow-orb-1 {
+  width: 300px;
+  height: 300px;
+  top: -60px;
+  right: 8%;
+  background: var(--accent-cyan);
+  opacity: 0.35;
+}
+
+.glow-orb-2 {
+  width: 360px;
+  height: 360px;
+  bottom: -100px;
+  left: -60px;
+  background: var(--accent-purple);
+}
+
+.glow-orb-3 {
+  width: 240px;
+  height: 240px;
+  top: 30%;
+  right: -60px;
+  background: var(--accent-pink);
+  opacity: 0.4;
+}
+
+.chat-messages {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  overflow-y: auto;
+  padding: 1.5rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.message-row {
+  display: flex;
+  gap: 0.65rem;
+  max-width: 620px;
+}
+
+.message-row-own {
+  align-self: flex-start; /* admin messages read like the screenshot: left-aligned, marked by crown avatar */
+}
+
+.avatar-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-purple), #6a4fb0);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+}
+
+.avatar-u_tamil { background: linear-gradient(135deg, #5aa9ff, #3d6fe0); }
+.avatar-u_arun { background: linear-gradient(135deg, #38c98f, #2a9e6d); }
+.avatar-u_priya { background: linear-gradient(135deg, #ff7fb0, #e25390); }
+.avatar-u_kumar { background: linear-gradient(135deg, #5aa9ff, #7a6ff0); }
+.avatar-u_suresh { background: linear-gradient(135deg, #8a8f9c, #5f6673); }
+.avatar-u_meenakshi { background: linear-gradient(135deg, #ff9f5a, #e2723d); }
+.avatar-u_ravi { background: linear-gradient(135deg, #5ad0ff, #3d9ee0); }
+.avatar-u_deepa { background: linear-gradient(135deg, #c05aff, #8a3de0); }
+
+.message-row-admin .avatar-circle {
+  background: linear-gradient(135deg, var(--accent-gold), #d6892a);
+}
+
+.message-bubble {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1.5px solid rgba(127, 217, 255, 0.9);
+  border-radius: 14px;
+  padding: 0.65rem 0.95rem;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 0 16px rgba(127, 217, 255, 0.45), 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.message-row-admin .message-bubble {
+  border-color: rgba(240, 178, 60, 0.9);
+  box-shadow: 0 0 16px rgba(240, 178, 60, 0.4), 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.message-sender {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-on-light);
+}
+
+.message-row-admin .message-sender {
+  color: #b5760f;
+}
+
+.message-text {
+  margin: 0 0 0.3rem;
+  font-size: 0.92rem;
+  color: var(--text-on-light);
+  white-space: pre-line;
+  line-height: 1.4;
+}
+
+.message-time {
+  font-size: 0.7rem;
+  color: var(--text-on-light-muted);
+}
+
+/* ---------- Message input ---------- */
+
+.message-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1.25rem;
+  background: #fbfaff;
+  border-top: 1px solid rgba(36, 26, 51, 0.08);
+  flex-shrink: 0;
+}
+
+.message-input {
+  flex: 1;
+  border: 1px solid rgba(36, 26, 51, 0.15);
+  background: #f3eef8;
+  color: var(--text-on-light);
+  border-radius: 24px;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.message-input::placeholder {
+  color: var(--text-on-light-muted);
+}
+
+.message-input:focus {
+  border-color: var(--accent-pink);
+  box-shadow: 0 0 0 3px rgba(236, 95, 163, 0.18);
+}
+
+.send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple));
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 0 14px rgba(236, 95, 163, 0.5);
+  transition: transform 0.15s ease;
+}
+
+.send-btn:hover {
+  transform: scale(1.06);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-online {
+  background: var(--online);
+  box-shadow: 0 0 6px var(--online);
+}
+
+.status-offline {
+  background: var(--offline);
+}
+
+/* ==========================================================
+   Responsiveness
+   ========================================================== */
+
+/* Below xl: shrink the member panel a bit before collapsing */
+@media (max-width: 1199.98px) {
+  .member-panel {
+    width: 225px;
+  }
+}
+
+/* Below lg: nav rail + member list become off-canvas drawers,
+   chat panel takes the full remaining width */
+@media (max-width: 991.98px) {
+  .admin-nav-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 210px;
+    transform: translateX(-100%);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+  }
+
+  .admin-nav-panel.is-open {
+    transform: translateX(0);
+  }
+
+  .member-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 82%;
+    max-width: 300px;
+    transform: translateX(-100%);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+  }
+
+  .member-panel.is-open {
+    transform: translateX(0);
+  }
+
+  .message-row {
+    max-width: 82%;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .chat-header {
+    padding: 0.7rem 0.9rem;
+  }
+
+  .chat-header-name {
+    font-size: 0.92rem;
+  }
+
+  .chat-messages {
+    padding: 1rem 0.85rem;
+  }
+
+  .message-row {
+    max-width: 94%;
+  }
+
+  .message-input-bar {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .message-input {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.85rem;
+  }
+
+  .member-panel {
+    max-width: 260px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-nav-panel,
+  .member-panel,
+  .send-btn {
+    transition: none;
+  }
+}

@@ -1,0 +1,24 @@
+:root {
+  --bg-primary: #05070a;
+  --bg-secondary: #0b1017;
+  --bg-card: #111923;
+
+  --text-primary: #f5f7fa;
+  --text-secondary: #9ba7b5;
+
+  --accent-primary: #00f5d4;
+  --accent-secondary: #00bbf9;
+
+  --border-color: rgba(0, 245, 212, 0.18);
+}
+
+body {
+  margin: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}

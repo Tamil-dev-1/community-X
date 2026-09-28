@@ -1,0 +1,800 @@
+/* ==========================================================================
+   Community X — Wallet Onboarding & Verification Screen
+   ========================================================================== */
+
+.cxo-page {
+  --void: #12060e;
+  --void-deep: #090307;
+  --panel-glass: rgba(39, 16, 29, 0.55);
+  --panel-glass-hover: rgba(51, 21, 39, 0.7);
+  --panel-border: rgba(232, 120, 164, 0.18);
+  --panel-border-focus: rgba(230, 61, 122, 0.5);
+  --magenta: #e63d7a;
+  --magenta-soft: #f06a9a;
+  --gold: #f2a93b;
+  --cyan: #37d9d4;
+  --ink: #f8edf1;
+  --ink-dim: #c9a3b6;
+  --ink-faint: #8a6376;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+
+  position: relative;
+  min-height: 100dvh;
+  width: 100%;
+  padding: clamp(1.5rem, 4vh, 3.5rem) 1rem;
+  background: var(--void);
+  color: var(--ink);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.5;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cxo-page * {
+  box-sizing: border-box;
+}
+
+.cxo-page h1 {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: clamp(20px, 4vw, 25px);
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+
+.cxo-page p {
+  margin: 0;
+}
+
+.cxo-page a {
+  color: var(--magenta-soft);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.cxo-page a:hover {
+  color: var(--cyan);
+  text-decoration: underline;
+}
+
+.cxo-page svg {
+  display: block;
+}
+
+.cxo-page button,
+.cxo-page input {
+  font-family: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cxo-page *,
+  .cxo-page *::before,
+  .cxo-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Canvas & Ambient Glow ---------- */
+.cxo-network-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.cxo-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(600px 450px at 15% 15%, rgba(230, 61, 122, 0.22), transparent 70%),
+    radial-gradient(550px 420px at 85% 85%, rgba(55, 217, 212, 0.16), transparent 70%);
+}
+
+.cxo-container {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ---------- Brand Logo Component ---------- */
+.cxo-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.cxo-brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: conic-gradient(from 220deg, var(--gold), var(--magenta), var(--cyan), var(--gold));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  animation: cxo-spin-slow 14s linear infinite;
+  box-shadow: 0 0 16px rgba(230, 61, 122, 0.35);
+}
+
+.cxo-brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--void-deep);
+}
+
+.cxo-brand-mark svg {
+  position: relative;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+}
+
+@keyframes cxo-spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cxo-brand-word {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+.cxo-brand-word span {
+  color: var(--ink-dim);
+  font-weight: 500;
+}
+
+/* ---------- Modern Glass Card ---------- */
+.cxo-card {
+  position: relative;
+  background: var(--panel-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  padding: clamp(24px, 5vw, 38px) clamp(20px, 4vw, 34px);
+  text-align: center;
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  transition: border-color 0.4s ease, transform 0.3s ease, box-shadow 0.4s ease;
+}
+
+.cxo-card:hover {
+  border-color: rgba(232, 120, 164, 0.3);
+  box-shadow: 0 35px 70px -20px rgba(0, 0, 0, 0.8),
+    0 0 30px rgba(230, 61, 122, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.cxo-card-glow {
+  position: absolute;
+  inset: -50%;
+  z-index: 0;
+  background: conic-gradient(from 0deg, transparent, rgba(230, 61, 122, 0.15), transparent 35%, rgba(55, 217, 212, 0.12), transparent 70%);
+  animation: cxo-card-rotate 14s linear infinite;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.cxo-card.is-busy .cxo-card-glow {
+  animation-duration: 4s;
+  opacity: 0.95;
+}
+
+@keyframes cxo-card-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cxo-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.cxo-card.is-verified {
+  border-color: rgba(55, 217, 212, 0.5);
+  box-shadow: 0 0 40px rgba(55, 217, 212, 0.15);
+}
+
+/* ---------- Top Icon Ring ---------- */
+.cxo-wallet-ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cxo-wallet-ring-spin {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(230, 61, 122, 0.45);
+  animation: cxo-spin-slow 8s linear infinite;
+}
+
+.cxo-wallet-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(230, 61, 122, 0.12);
+  border: 1px solid rgba(230, 61, 122, 0.35);
+  color: var(--magenta-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px rgba(230, 61, 122, 0.2);
+}
+
+.cxo-wallet-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.cxo-sub {
+  color: var(--ink-dim);
+  font-size: 13.5px;
+  margin-bottom: 30px;
+}
+
+/* ---------- Interactive Glassy Input Field ---------- */
+.cxo-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(12, 4, 9, 0.55);
+  border: 1px solid var(--panel-border);
+  overflow: hidden;
+  margin-bottom: 22px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.cxo-input-wrapper:focus-within {
+  border-color: var(--panel-border-focus);
+  background: rgba(18, 6, 14, 0.8);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4),
+    0 0 16px rgba(230, 61, 122, 0.25);
+}
+
+.cxo-input-wrapper.is-filled {
+  border-color: rgba(55, 217, 212, 0.45);
+  background: rgba(55, 217, 212, 0.05);
+}
+
+.cxo-input-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--ink-faint);
+  flex-shrink: 0;
+  transition: color 0.3s ease;
+}
+
+.cxo-input-wrapper:focus-within .cxo-input-icon {
+  color: var(--magenta-soft);
+}
+
+.cxo-input-wrapper.is-filled .cxo-input-icon {
+  color: var(--cyan);
+}
+
+.cxo-input {
+  width: 100%;
+  height: 44px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: "Space Grotesk", monospace;
+  font-size: 13.5px;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+.cxo-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.cxo-input-clear {
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.cxo-input-clear:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cxo-address-check {
+  width: 18px;
+  height: 18px;
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+
+.cxo-address-check svg {
+  width: 100%;
+  height: 100%;
+}
+
+.cxo-input-wrapper.is-scanning::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(55, 217, 212, 0.35), transparent);
+  animation: cxo-scan 1.3s ease-in-out infinite;
+}
+
+@keyframes cxo-scan {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* ---------- Chain-of-Trust Progress System ---------- */
+.cxo-chain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 26px;
+  width: 100%;
+}
+
+.cxo-chain-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.cxo-chain-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--void-deep);
+  border: 1.5px solid var(--panel-border);
+  transition: all 0.3s ease;
+}
+
+.cxo-chain-node.is-active .cxo-chain-dot {
+  border-color: var(--magenta);
+  background: var(--magenta);
+  box-shadow: 0 0 0 4px rgba(230, 61, 122, 0.22);
+  animation: cxo-node-pulse 1.2s ease-in-out infinite;
+}
+
+.cxo-chain-node.is-done .cxo-chain-dot {
+  border-color: var(--cyan);
+  background: var(--cyan);
+  box-shadow: 0 0 8px rgba(55, 217, 212, 0.6);
+}
+
+@keyframes cxo-node-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(230, 61, 122, 0.22);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(230, 61, 122, 0.08);
+  }
+}
+
+.cxo-chain-label {
+  font-size: 11px;
+  text-transform: capitalize;
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+  transition: color 0.3s ease;
+}
+
+.cxo-chain-node.is-active .cxo-chain-label,
+.cxo-chain-node.is-done .cxo-chain-label {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.cxo-chain-line {
+  height: 2px;
+  flex: 1;
+  background: var(--panel-border);
+  margin-top: -18px;
+  transition: background 0.4s ease;
+}
+
+.cxo-chain-line.is-done {
+  background: var(--cyan);
+  box-shadow: 0 0 6px rgba(55, 217, 212, 0.4);
+}
+
+/* ---------- Enhanced Action Button ---------- */
+.cxo-btn {
+  position: relative;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--magenta) 0%, #ba1c53 100%);
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 20px -4px rgba(230, 61, 122, 0.45);
+  margin-bottom: 18px;
+}
+
+.cxo-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  transition: left 0.6s ease;
+}
+
+.cxo-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -4px rgba(230, 61, 122, 0.65),
+    0 0 16px rgba(230, 61, 122, 0.3);
+  background: linear-gradient(135deg, #f04884 0%, #c9205a 100%);
+}
+
+.cxo-btn:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.cxo-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 6px 16px -4px rgba(230, 61, 122, 0.5);
+}
+
+.cxo-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+  box-shadow: none;
+}
+
+.cxo-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: cxo-spin 0.7s linear infinite;
+}
+
+@keyframes cxo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cxo-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.cxo-note svg {
+  width: 13px;
+  height: 13px;
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+
+.cxo-error {
+  font-size: 12.5px;
+  color: var(--magenta-soft);
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+/* ---------- Verified / Success State ---------- */
+.cxo-success-ring {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(55, 217, 212, 0.12);
+  border: 1px solid rgba(55, 217, 212, 0.4);
+  color: var(--cyan);
+  box-shadow: 0 0 20px rgba(55, 217, 212, 0.2);
+}
+
+.cxo-success-pulse {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(55, 217, 212, 0.4);
+  animation: cxo-pulse-out 1.8s ease-out infinite;
+}
+
+@keyframes cxo-pulse-out {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.cxo-success-check {
+  width: 30px;
+  height: 30px;
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: cxo-draw-check 0.5s ease 0.15s forwards;
+}
+
+@keyframes cxo-draw-check {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.cxo-mono {
+  font-family: "Space Grotesk", monospace;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.cxo-progress-bar {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-top: 24px;
+}
+
+.cxo-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--cyan), var(--gold));
+  animation: cxo-progress 0.7s ease 0.2s forwards;
+}
+
+@keyframes cxo-progress {
+  to {
+    width: 100%;
+  }
+}
+
+/* ---------- Card Footnote ---------- */
+.cxo-footnote {
+  margin-top: 20px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+/* ---------- Full Mobile & Tablet Responsiveness ---------- */
+@media (max-width: 575.98px) {
+  .cxo-page {
+    padding: 1.25rem 0.75rem;
+  }
+
+  .cxo-card {
+    padding: 28px 18px;
+    border-radius: 20px;
+  }
+
+  .cxo-chain-label {
+    font-size: 10px;
+  }
+
+  .cxo-chain-line {
+    margin-top: -16px;
+  }
+
+  .cxo-input {
+    font-size: 12.5px;
+  }
+}
+
+@media (max-height: 680px) {
+  .cxo-page {
+    align-items: flex-start;
+  }
+
+  .cxo-brand {
+    margin-bottom: 16px;
+  }
+
+  .cxo-wallet-ring {
+    margin-bottom: 14px;
+    width: 52px;
+    height: 52px;
+  }
+
+  .cxo-wallet-icon {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+
+/* =========================================================
+   COMMUNITY X - VALIDATION RESULT
+   ========================================================= */
+
+.cxo-result-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 12px;
+  padding: 5px 10px;
+
+  border: 1px solid rgba(55, 217, 212, 0.35);
+  border-radius: 999px;
+
+  background: rgba(55, 217, 212, 0.08);
+
+  color: var(--cyan);
+
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cxo-new-badge {
+  border-color: rgba(242, 169, 59, 0.35);
+  background: rgba(242, 169, 59, 0.08);
+  color: var(--gold);
+}
+
+
+/* Result button */
+
+.cxo-result-btn {
+  margin-top: 22px;
+}
+
+
+/* Existing / New result animation */
+
+.cxo-card.is-verified .cxo-success {
+  animation: cxo-result-enter 0.45s ease both;
+}
+
+@keyframes cxo-result-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* Result mobile */
+
+@media (max-width: 575.98px) {
+  .cxo-result-btn {
+    width: 100%;
+  }
+
+  .cxo-result-badge {
+    font-size: 9px;
+  }
+}
+
+
+
+.cxo-wallet-address {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-family: "Space Grotesk", monospace;
+  font-size: 13.5px;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  text-align: left;
+}
+
+.cxo-input-wrapper.is-filled {
+  border-color: rgba(55, 217, 212, 0.45);
+  background: rgba(55, 217, 212, 0.05);
+}
+
+.cxo-secondary-btn {
+  width: 100%;
+  padding: 11px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink-dim);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.cxo-secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 575.98px) {
+  .cxo-wallet-address {
+    font-size: 12.5px;
+  }
+
+  .cxo-secondary-btn {
+    font-size: 12.5px;
+  }
+}
