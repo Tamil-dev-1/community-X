@@ -4,6 +4,25 @@
    d-flex, d-none, gap utilities) used directly in LandingPage.jsx.
    ========================================================================== */
 
+/* ---------- Global Scroll & Layout Reset ---------- */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 84px;
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ---------- Main Page Container ---------- */
 .cx-page {
   --void: #170812;
   --void-deep: #0e0509;
@@ -22,11 +41,17 @@
   --radius-lg: 24px;
 
   position: relative;
+  width: 100%;
+  min-height: 100vh;
   background: var(--void);
   color: var(--ink);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.6;
-  overflow-x: hidden;
+  
+  /* FIXED: Replaced standard overflow-x with clip/visible to prevent scroll locks */
+  overflow-x: clip;
+  overflow-y: visible;
+  
   -webkit-font-smoothing: antialiased;
 }
 
@@ -65,11 +90,6 @@
   cursor: pointer;
 }
 
-html {
-  scroll-behavior: smooth;
-  scroll-padding-top: 84px;
-}
-
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -83,18 +103,18 @@ html {
   }
 }
 
-/* ---------- ambient background ---------- */
+/* ---------- Ambient Background ---------- */
 .cx-ambient {
   position: fixed;
   inset: 0;
   z-index: 0;
-  pointer-events: none;
+  pointer-events: none; /* FIXED: Ensure background overlay never catches mouse wheel/touch */
   background: radial-gradient(680px 480px at 12% -6%, rgba(230, 61, 122, 0.2), transparent 60%),
     radial-gradient(620px 460px at 92% 8%, rgba(55, 217, 212, 0.14), transparent 60%),
     radial-gradient(900px 620px at 50% 115%, rgba(242, 169, 59, 0.09), transparent 60%);
 }
 
-/* ---------- navbar ---------- */
+/* ---------- Navbar ---------- */
 .cx-navbar {
   position: fixed;
   top: 0;
@@ -254,7 +274,7 @@ html {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* ---------- buttons ---------- */
+/* ---------- Buttons ---------- */
 .cx-btn {
   display: inline-flex;
   align-items: center;
@@ -325,7 +345,7 @@ html {
   }
 }
 
-/* ---------- hero ---------- */
+/* ---------- Hero ---------- */
 .cx-hero {
   position: relative;
   padding: 176px 0 120px;
@@ -339,6 +359,7 @@ html {
   height: 100%;
   z-index: 0;
   opacity: 0.85;
+  pointer-events: none; /* FIXED: Pass scroll and drag inputs straight to the page */
 }
 
 .cx-hero-inner {
@@ -424,7 +445,7 @@ html {
   color: var(--ink-faint);
 }
 
-/* ---------- shared section styles ---------- */
+/* ---------- Shared Section Styles ---------- */
 .cx-section {
   position: relative;
   z-index: 2;
@@ -482,7 +503,7 @@ html {
   max-width: 44ch;
 }
 
-/* ---------- feature cards ---------- */
+/* ---------- Feature Cards ---------- */
 .cx-feature-card {
   background: linear-gradient(180deg, var(--panel), var(--panel-2) 160%);
   border: 1px solid var(--panel-border);
@@ -524,7 +545,7 @@ html {
   color: var(--ink-dim);
 }
 
-/* ---------- steps ---------- */
+/* ---------- Steps ---------- */
 .cx-steps-row {
   position: relative;
 }
@@ -571,7 +592,7 @@ html {
   color: var(--ink-dim);
 }
 
-/* ---------- trust stats ---------- */
+/* ---------- Trust Stats ---------- */
 .cx-stat-card {
   background: var(--panel);
   border: 1px solid var(--panel-border);
@@ -616,7 +637,7 @@ html {
   margin-bottom: 32px;
 }
 
-/* ---------- footer ---------- */
+/* ---------- Footer ---------- */
 .cx-footer {
   border-top: 1px solid var(--panel-border);
   padding: 70px 0 30px;
@@ -684,7 +705,7 @@ html {
   stroke: var(--ink-dim);
 }
 
-/* ---------- responsive tuning (fine adjustments beyond Bootstrap's grid) ---------- */
+/* ---------- Responsive Tuning ---------- */
 @media (max-width: 991.98px) {
   .cx-cta-card {
     padding: 48px 28px;

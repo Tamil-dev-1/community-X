@@ -1,64 +1,35 @@
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
-import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
 
-import {
-  Users,
-  Megaphone,
-  Paperclip,
-  Smile,
-  Send,
-  Crown,
-  Menu,
-  X,
-  Shield,
-  ChevronRight,
-  Flame,
-  CheckCheck,
-  Pencil,
-  Trash2,
-  Check,
-  XCircle,
-} from "lucide-react";
+import ChatSidebar from "../../components/community-chat/ChatSidebar";
+import ChatHeader from "../../components/community-chat/ChatHeader";
+import ChatMessages from "../../components/community-chat/ChatMessages";
+import ChatInput from "../../components/community-chat/ChatInput";
 
 import "./CommunityChat.css";
 
-// ============================================================
-// API URL
-// ============================================================
-
 const API_URL = "http://localhost:5000/api/messages";
-
-// ============================================================
-// SOCKET URL
-// ============================================================
-
 const SOCKET_URL = "http://localhost:5000";
-
-// ============================================================
-// DEFAULT AVATAR
-// ============================================================
 
 const DEFAULT_AVATAR =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80";
 
-// ============================================================
-// COMPONENT
-// ============================================================
-
-export default function CommunityChat() {
-  const socketRef = useRef(null);
+const CommunityChat = () => {
   const location = useLocation();
 
-  // ============================================================
-  // CURRENT USER
-  // ============================================================
+  const communityUser =
+    location.state?.communityUser;
 
-  const communityUser = location.state?.communityUser;
-  const walletAddressFromState = location.state?.walletAddress;
+  const walletAddressFromState =
+    location.state?.walletAddress;
 
-  const CURRENT_USER = {
+  const currentUser = {
     walletAddress:
       communityUser?.walletAddress ||
       walletAddressFromState ||
@@ -69,7 +40,8 @@ export default function CommunityChat() {
       communityUser?.username ||
       "Community Member",
 
-    username: communityUser?.username || "",
+    username:
+      communityUser?.username || "",
 
     avatar:
       communityUser?.profileImage ||
@@ -78,25 +50,24 @@ export default function CommunityChat() {
     isAdmin: false,
   };
 
-  // ============================================================
-  // JWT TOKEN
-  // ============================================================
+  const token =
+    localStorage.getItem("communityXToken");
 
-  const token = localStorage.getItem("communityXToken");
+  /* ----------------------------- */
+  /* State */
+  /* ----------------------------- */
 
-  // ============================================================
-  // STATES
-  // ============================================================
+  const [activeTab, setActiveTab] =
+    useState("group");
 
-  const [activeTab, setActiveTab] = useState("group");
+  const [messages, setMessages] =
+    useState([]);
 
-  // Backend group messages
-  const [messages, setMessages] = useState([]);
+  const [adminMessages, setAdminMessages] =
+    useState([]);
 
-  // Admin messages are local for now
-  const [adminMessages, setAdminMessages] = useState([]);
-
-  const [inputText, setInputText] = useState("");
+  const [inputText, setInputText] =
+    useState("");
 
   const [mobileMenuOpen, setMobileMenuOpen] =
     useState(false);
@@ -104,13 +75,11 @@ export default function CommunityChat() {
   const [showEmojiPicker, setShowEmojiPicker] =
     useState(false);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [sending, setSending] = useState(false);
-
-  // ============================================================
-  // EDIT STATE
-  // ============================================================
+  const [sending, setSending] =
+    useState(false);
 
   const [editingMessageId, setEditingMessageId] =
     useState(null);
@@ -124,147 +93,201 @@ export default function CommunityChat() {
   const [deletingMessageId, setDeletingMessageId] =
     useState(null);
 
+  const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // ============================================================
-  // SOCKET.IO CONNECTION
-  // ============================================================
+  /* ----------------------------- */
+  /* Socket.IO */
+  /* ----------------------------- */
 
   useEffect(() => {
-    const socket = io(SOCKET_URL);
+    if (!token) {
+      console.warn(
+        "Community X token not found."
+      );
+
+      return;
+    }
+
+    const socket = io(SOCKET_URL, {
+      transports: ["websocket"],
+    });
 
     socketRef.current = socket;
 
     socket.on("connect", () => {
       console.log(
-        "Socket connected:",
+        "Community X socket connected:",
         socket.id
+      );
+
+      socket.emit("authenticate-socket", {
+        token,
+      });
+    });
+
+    socket.on(
+      "socket-authenticated",
+      (data) => {
+        console.log(
+          "Socket authenticated:",
+          data
+        );
+      }
+    );
+
+    socket.on(
+      "socket-auth-error",
+      (error) => {
+        console.error(
+          "Socket authentication error:",
+          error
+        );
+      }
+    );
+
+    socket.on("disconnect", () => {
+      console.log(
+        "Community X socket disconnected"
       );
     });
 
-    socket.on("disconnect", () => {
-      console.log("Socket disconnected");
-    });
+    /* New group message */
+    socket.on(
+      "new-group-message",
+      (newMessage) => {
+        const formattedMessage = {
+          id:
+            newMessage._id ||
+            newMessage.id,
+
+          senderId:
+            newMessage.senderWallet,
+
+          senderWallet:
+            newMessage.senderWallet,
+
+          senderName:
+            newMessage.senderName ||
+            "Community Member",
+
+          avatar:
+            newMessage.senderAvatar ||
+            DEFAULT_AVATAR,
+
+          isAdmin:
+            newMessage.isAdmin || false,
+
+          text:
+            newMessage.message || "",
+
+          time: new Date(
+            newMessage.createdAt ||
+              Date.now()
+          ).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+
+        setMessages((prev) => {
+          const exists = prev.some(
+            (message) =>
+              message.id ===
+              formattedMessage.id
+          );
+
+          if (exists) {
+            return prev;
+          }
+
+          return [
+            ...prev,
+            formattedMessage,
+          ];
+        });
+      }
+    );
+
+    /* Updated message */
+    socket.on(
+      "message-updated",
+      (updatedMessage) => {
+        setMessages((prev) =>
+          prev.map((message) => {
+            if (
+              message.id ===
+              (updatedMessage._id ||
+                updatedMessage.id)
+            ) {
+              return {
+                ...message,
+                text:
+                  updatedMessage.message,
+              };
+            }
+
+            return message;
+          })
+        );
+      }
+    );
+
+    /* Deleted message */
+    socket.on(
+      "message-deleted",
+      (deletedMessage) => {
+        const deletedId =
+          deletedMessage._id ||
+          deletedMessage.id ||
+          deletedMessage.messageId;
+
+        setMessages((prev) =>
+          prev.filter(
+            (message) =>
+              message.id !== deletedId
+          )
+        );
+      }
+    );
 
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, [token]);
 
-  // ============================================================
-  // RECEIVE REAL-TIME GROUP MESSAGES
-  // ============================================================
+  /* ----------------------------- */
+  /* Auto Scroll */
+  /* ----------------------------- */
 
   useEffect(() => {
-    const socket = socketRef.current;
-
-    if (!socket) {
-      return;
-    }
-
-    const handleNewGroupMessage = (newMessage) => {
-      console.log(
-        "New real-time message:",
-        newMessage
-      );
-
-      const formattedMessage = {
-        id: newMessage._id,
-
-        senderId:
-          newMessage.senderWallet,
-
-        senderName:
-          newMessage.senderName,
-
-        avatar:
-          newMessage.senderAvatar || null,
-
-        isAdmin: false,
-
-        text:
-          newMessage.message,
-
-        time: new Date(
-          newMessage.createdAt
-        ).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-
-      setMessages((prevMessages) => {
-        // Prevent duplicate message
-        const alreadyExists =
-          prevMessages.some(
-            (msg) =>
-              msg.id ===
-              formattedMessage.id
-          );
-
-        if (alreadyExists) {
-          return prevMessages;
-        }
-
-        return [
-          ...prevMessages,
-          formattedMessage,
-        ];
-      });
-    };
-
-    socket.on(
-      "new-group-message",
-      handleNewGroupMessage
-    );
-
-    return () => {
-      socket.off(
-        "new-group-message",
-        handleNewGroupMessage
-      );
-    };
-  }, []);
-
-  // ============================================================
-  // SCROLL TO BOTTOM
-  // ============================================================
-
-  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
     });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
   }, [
     messages,
     adminMessages,
     activeTab,
   ]);
 
-  // ============================================================
-  // GET GROUP MESSAGES
-  // ============================================================
+  /* ----------------------------- */
+  /* Fetch Group Messages */
+  /* ----------------------------- */
 
   useEffect(() => {
     const fetchGroupMessages = async () => {
-      if (!token) {
-        console.error(
-          "Community X JWT token not found."
-        );
-
-        alert(
-          "Authentication expired. Please connect your wallet again."
-        );
-
-        return;
-      }
-
       try {
         setLoading(true);
+
+        if (!token) {
+          console.warn(
+            "No Community X token found."
+          );
+
+          setMessages([]);
+          return;
+        }
 
         const response = await fetch(
           `${API_URL}/group`,
@@ -278,65 +301,79 @@ export default function CommunityChat() {
         );
 
         if (response.status === 401) {
-          throw new Error(
-            "Authentication failed. Please connect your wallet again."
+          console.error(
+            "Community X token expired or invalid."
           );
-        }
 
-        if (!response.ok) {
-          throw new Error(
-            "Failed to fetch group messages"
-          );
+          setMessages([]);
+          return;
         }
 
         const data =
           await response.json();
 
-        if (data.success) {
-          const formattedMessages =
-            data.messages.map((msg) => ({
-              id: msg._id,
-
-              // Wallet address acts as sender ID
-              senderId:
-                msg.senderWallet,
-
-              senderName:
-                msg.senderName,
-
-              avatar:
-                msg.senderAvatar ||
-                null,
-
-              isAdmin: false,
-
-              text: msg.message,
-
-              time: new Date(
-                msg.createdAt
-              ).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-            }));
-
-          setMessages(
-            formattedMessages
+        if (!response.ok) {
+          throw new Error(
+            data.message ||
+              "Failed to fetch messages"
           );
         }
+
+        const serverMessages =
+          Array.isArray(data)
+            ? data
+            : data.messages || [];
+
+        const formattedMessages =
+          serverMessages.map(
+            (message) => ({
+              id:
+                message._id ||
+                message.id,
+
+              senderId:
+                message.senderWallet,
+
+              senderWallet:
+                message.senderWallet,
+
+              senderName:
+                message.senderName ||
+                "Community Member",
+
+              avatar:
+                message.senderAvatar ||
+                DEFAULT_AVATAR,
+
+              isAdmin:
+                message.isAdmin || false,
+
+              text:
+                message.message || "",
+
+              time: new Date(
+                message.createdAt ||
+                  Date.now()
+              ).toLocaleTimeString(
+                [],
+                {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }
+              ),
+            })
+          );
+
+        setMessages(
+          formattedMessages
+        );
       } catch (error) {
         console.error(
-          "Fetch Group Messages Error:",
+          "Fetch group messages error:",
           error
         );
 
-        if (
-          error.message.includes(
-            "Authentication failed"
-          )
-        ) {
-          alert(error.message);
-        }
+        setMessages([]);
       } finally {
         setLoading(false);
       }
@@ -345,92 +382,86 @@ export default function CommunityChat() {
     fetchGroupMessages();
   }, [token]);
 
-  // ============================================================
-  // SEND GROUP MESSAGE
-  // ============================================================
+  /* ----------------------------- */
+  /* Send Message */
+  /* ----------------------------- */
 
-  const handleSendMessage = async (e) => {
-    e?.preventDefault();
+  const handleSendMessage = async (event) => {
+    event?.preventDefault();
 
-    const text = inputText.trim();
+    const trimmedText =
+      inputText.trim();
 
-    if (!text || sending) {
+    if (!trimmedText) {
       return;
     }
 
-    // ============================================================
-    // MAKE SURE CURRENT USER EXISTS
-    // ============================================================
-
-    if (!CURRENT_USER.walletAddress) {
+    if (!currentUser.walletAddress) {
       alert(
-        "User information not found. Please connect your wallet again."
+        "Wallet information is missing. Please connect your wallet again."
       );
 
       return;
     }
-
-    // ============================================================
-    // MAKE SURE JWT EXISTS
-    // ============================================================
 
     if (!token) {
       alert(
-        "Authentication token not found. Please connect your wallet again."
+        "Your Community X session has expired. Please login again."
       );
 
       return;
     }
 
-    // ============================================================
-    // ADMIN TAB
-    // ============================================================
+    try {
+      setSending(true);
 
-    if (activeTab !== "group") {
-      const localAdminMessage = {
-        id: `local_${Date.now()}`,
+      /* ----------------------------- */
+      /* Admin tab - local message */
+      /* ----------------------------- */
 
-        senderId:
-          CURRENT_USER.walletAddress,
+      if (activeTab !== "group") {
+        const newAdminMessage = {
+          id: `local_${Date.now()}`,
 
-        senderName:
-          CURRENT_USER.name,
+          senderId:
+            currentUser.walletAddress,
 
-        avatar:
-          CURRENT_USER.avatar,
+          senderWallet:
+            currentUser.walletAddress,
 
-        isAdmin:
-          CURRENT_USER.isAdmin,
+          senderName:
+            currentUser.name,
 
-        text,
+          avatar:
+            currentUser.avatar,
 
-        time:
-          new Date().toLocaleTimeString(
+          isAdmin: false,
+
+          text: trimmedText,
+
+          time: new Date().toLocaleTimeString(
             [],
             {
               hour: "2-digit",
               minute: "2-digit",
             }
           ),
-      };
+        };
 
-      setAdminMessages((prev) => [
-        ...prev,
-        localAdminMessage,
-      ]);
+        setAdminMessages((prev) => [
+          ...prev,
+          newAdminMessage,
+        ]);
 
-      setInputText("");
-      setShowEmojiPicker(false);
+        setInputText("");
+        setShowEmojiPicker(false);
 
-      return;
-    }
+        return;
+      }
 
-    // ============================================================
-    // GROUP MESSAGE
-    // ============================================================
-
-    try {
-      setSending(true);
+      /* ----------------------------- */
+      /* Group message */
+      /* ----------------------------- */
 
       const response = await fetch(
         `${API_URL}/group`,
@@ -441,125 +472,90 @@ export default function CommunityChat() {
             "Content-Type":
               "application/json",
 
-            // JWT authentication
             Authorization: `Bearer ${token}`,
           },
 
-          // IMPORTANT:
-          // senderWallet is NOT sent.
-          // Backend gets walletAddress from JWT.
           body: JSON.stringify({
             senderName:
-              CURRENT_USER.name,
+              currentUser.name,
 
             senderAvatar:
-              CURRENT_USER.avatar,
+              currentUser.avatar,
 
-            message: text,
+            message: trimmedText,
           }),
         }
       );
 
-      if (response.status === 401) {
-        throw new Error(
-          "Authentication failed. Please connect your wallet again."
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          "Failed to send group message"
-        );
-      }
-
       const data =
         await response.json();
 
-      if (data.success) {
-        /*
-          IMPORTANT:
-
-          Do NOT add the message to state here.
-
-          Backend already emits:
-          "new-group-message"
-
-          Socket.IO listener above will receive
-          the saved MongoDB message and add it
-          to the messages state.
-
-          This prevents duplicate messages
-          in the sender's own tab.
-        */
-
-        setInputText("");
-
-        setShowEmojiPicker(false);
-      } else {
-        console.error(
-          "Send message failed:",
-          data.message
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to send message"
         );
       }
+
+      setInputText("");
+      setShowEmojiPicker(false);
+
+      /*
+       * Socket.IO will normally send the
+       * new message back to the clients.
+       * We don't manually add it here to
+       * prevent duplicate messages.
+       */
     } catch (error) {
       console.error(
-        "Send Group Message Error:",
+        "Send message error:",
         error
       );
 
       alert(
         error.message ||
-          "Failed to send message. Please try again."
+          "Failed to send message."
       );
     } finally {
       setSending(false);
     }
   };
 
-  // ============================================================
-  // START EDIT MESSAGE
-  // ============================================================
+  /* ----------------------------- */
+  /* Start Edit */
+  /* ----------------------------- */
 
-  const handleStartEdit = (msg) => {
-    setEditingMessageId(msg.id);
-    setEditingText(msg.text);
+  const handleStartEdit = (message) => {
+    setEditingMessageId(message.id);
+    setEditingText(message.text);
   };
 
-  // ============================================================
-  // CANCEL EDIT
-  // ============================================================
+  /* ----------------------------- */
+  /* Cancel Edit */
+  /* ----------------------------- */
 
   const handleCancelEdit = () => {
     setEditingMessageId(null);
     setEditingText("");
   };
 
-  // ============================================================
-  // UPDATE MESSAGE
-  // ============================================================
+  /* ----------------------------- */
+  /* Update Message */
+  /* ----------------------------- */
 
   const handleUpdateMessage = async (
     messageId
   ) => {
-    const updatedText =
+    const trimmedText =
       editingText.trim();
 
-    if (!updatedText) {
-      alert(
-        "Message cannot be empty."
-      );
-
+    if (!trimmedText) {
       return;
     }
 
-    if (updatingMessage) {
-      return;
-    }
-
-    // JWT check
     if (!token) {
       alert(
-        "Authentication token not found. Please connect your wallet again."
+        "Your session has expired. Please login again."
       );
 
       return;
@@ -577,100 +573,77 @@ export default function CommunityChat() {
             "Content-Type":
               "application/json",
 
-            // JWT authentication
             Authorization: `Bearer ${token}`,
           },
 
           body: JSON.stringify({
-            message: updatedText,
+            message: trimmedText,
           }),
         }
       );
 
-      if (response.status === 401) {
-        throw new Error(
-          "Authentication failed. Please connect your wallet again."
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          "Failed to update message"
-        );
-      }
-
       const data =
         await response.json();
 
-      if (!data.success) {
+      if (!response.ok) {
         throw new Error(
           data.message ||
             "Failed to update message"
         );
       }
 
-      setMessages(
-        (prevMessages) =>
-          prevMessages.map((msg) =>
-            msg.id === messageId
-              ? {
-                  ...msg,
-                  text: updatedText,
-                }
-              : msg
-          )
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                text: trimmedText,
+              }
+            : message
+        )
       );
 
-      setEditingMessageId(null);
-      setEditingText("");
+      handleCancelEdit();
     } catch (error) {
       console.error(
-        "Update Group Message Error:",
+        "Update message error:",
         error
       );
 
       alert(
         error.message ||
-          "Failed to update message. Please try again."
+          "Failed to update message."
       );
     } finally {
       setUpdatingMessage(false);
     }
   };
 
-  // ============================================================
-  // DELETE MESSAGE
-  // ============================================================
+  /* ----------------------------- */
+  /* Delete Message */
+  /* ----------------------------- */
 
   const handleDeleteMessage = async (
     messageId
   ) => {
-    if (deletingMessageId) {
-      return;
-    }
-
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to delete this message?"
-      );
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this message?"
+    );
 
     if (!confirmed) {
       return;
     }
 
-    // JWT check
     if (!token) {
       alert(
-        "Authentication token not found. Please connect your wallet again."
+        "Your session has expired. Please login again."
       );
 
       return;
     }
 
     try {
-      setDeletingMessageId(
-        messageId
-      );
+      setDeletingMessageId(messageId);
 
       const response = await fetch(
         `${API_URL}/group/${messageId}`,
@@ -678,92 +651,77 @@ export default function CommunityChat() {
           method: "DELETE",
 
           headers: {
-            // JWT authentication
             Authorization: `Bearer ${token}`,
           },
         }
       );
 
-      if (response.status === 401) {
-        throw new Error(
-          "Authentication failed. Please connect your wallet again."
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          "Failed to delete message"
-        );
-      }
-
       const data =
         await response.json();
 
-      if (!data.success) {
+      if (!response.ok) {
         throw new Error(
           data.message ||
             "Failed to delete message"
         );
       }
 
-      setMessages(
-        (prevMessages) =>
-          prevMessages.filter(
-            (msg) =>
-              msg.id !== messageId
-          )
+      setMessages((prev) =>
+        prev.filter(
+          (message) =>
+            message.id !== messageId
+        )
       );
     } catch (error) {
       console.error(
-        "Delete Group Message Error:",
+        "Delete message error:",
         error
       );
 
       alert(
         error.message ||
-          "Failed to delete message. Please try again."
+          "Failed to delete message."
       );
     } finally {
       setDeletingMessageId(null);
     }
   };
 
-  // ============================================================
-  // EMOJI
-  // ============================================================
+  /* ----------------------------- */
+  /* Emoji */
+  /* ----------------------------- */
 
   const addEmoji = (emoji) => {
     setInputText(
-      (prev) => prev + emoji
+      (prev) => `${prev}${emoji}`
     );
+
+    setShowEmojiPicker(false);
   };
 
-  // ============================================================
-  // CURRENT MESSAGES
-  // ============================================================
+  /* ----------------------------- */
+  /* Current Messages */
+  /* ----------------------------- */
 
   const currentMessages =
     activeTab === "group"
       ? messages
       : adminMessages;
 
-  // ============================================================
-  // JSX
-  // ============================================================
+  /* ----------------------------- */
+  /* JSX */
+  /* ----------------------------- */
 
   return (
     <div className="cxchat-chat-app">
-
-      {/* Background Ambient Glows */}
-
-      <div className="cxchat-ambient-bg-layer">
-        <div className="cxchat-ambient-light-1" />
-        <div className="cxchat-ambient-light-2" />
-        <div className="cxchat-ambient-light-3" />
+      {/* Ambient Background */}
+      <div className="cxchat-ambient-background">
+        <div className="cxchat-ambient-light cxchat-ambient-light-one" />
+        <div className="cxchat-ambient-light cxchat-ambient-light-two" />
+        <div className="cxchat-ambient-light cxchat-ambient-light-three" />
       </div>
 
       {/* Mobile Backdrop */}
-
       {mobileMenuOpen && (
         <div
           className="cxchat-mobile-backdrop"
@@ -773,745 +731,84 @@ export default function CommunityChat() {
         />
       )}
 
-      {/* ========================================================
-          SIDEBAR
-      ======================================================== */}
+      {/* Sidebar */}
+      <ChatSidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        mobileMenuOpen={mobileMenuOpen}
+        setMobileMenuOpen={
+          setMobileMenuOpen
+        }
+        currentUser={currentUser}
+      />
 
-      <aside
-        className={`cxchat-chat-sidebar ${
-          mobileMenuOpen
-            ? "cxchat-sidebar-visible"
-            : "cxchat-sidebar-hidden"
-        }`}
-      >
-        <div>
-
-          {/* Sidebar Header */}
-
-          <div className="cxchat-sidebar-header">
-            <div className="cxchat-sidebar-brand">
-
-              <div className="cxchat-brand-icon">
-                <Users size={22} />
-              </div>
-
-              <div className="cxchat-brand-info">
-                <span className="cxchat-brand-name">
-                  Community X
-                </span>
-
-                <span className="cxchat-brand-tag">
-                  EXECUTIVE HUB
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={() =>
-                setMobileMenuOpen(false)
-              }
-              className="cxchat-sidebar-close-btn"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          {/* Navigation */}
-
-          <nav className="cxchat-sidebar-nav">
-
-            <div className="cxchat-nav-section-title">
-              Channels
-            </div>
-
-            {/* Group Chat */}
-
-            <button
-              onClick={() => {
-                setActiveTab("group");
-                setMobileMenuOpen(false);
-              }}
-              className={`cxchat-nav-item ${
-                activeTab === "group"
-                  ? "cxchat-nav-item-active"
-                  : "cxchat-nav-item-inactive"
-              }`}
-            >
-              <div className="cxchat-nav-item-left">
-                <Users size={18} />
-
-                <span>
-                  Group Chat
-                </span>
-              </div>
-
-              {activeTab === "group" && (
-                <ChevronRight size={16} />
-              )}
-            </button>
-
-            {/* Admin Messages */}
-
-            <button
-              onClick={() => {
-                setActiveTab("admin");
-                setMobileMenuOpen(false);
-              }}
-              className={`cxchat-nav-item ${
-                activeTab === "admin"
-                  ? "cxchat-nav-item-active"
-                  : "cxchat-nav-item-inactive"
-              }`}
-            >
-              <div className="cxchat-nav-item-left">
-                <Megaphone size={18} />
-
-                <span>
-                  Admin Messages
-                </span>
-              </div>
-
-              {activeTab === "admin" && (
-                <ChevronRight size={16} />
-              )}
-            </button>
-
-          </nav>
-        </div>
-
-        {/* ====================================================
-            DYNAMIC CURRENT USER
-        ==================================================== */}
-
-        <div className="cxchat-sidebar-user">
-
-          <div className="cxchat-user-card">
-
-            <div className="cxchat-nav-item-left">
-
-              <div className="cxchat-user-avatar-wrapper">
-
-                <img
-                  src={CURRENT_USER.avatar}
-                  alt={CURRENT_USER.name}
-                  className="cxchat-user-avatar"
-                />
-
-                <span className="cxchat-user-online-dot" />
-
-              </div>
-
-              <div className="cxchat-user-details">
-
-                <span className="cxchat-user-name">
-                  {CURRENT_USER.name}
-                </span>
-
-                <span className="cxchat-user-role">
-                  {CURRENT_USER.isAdmin
-                    ? "Administrator"
-                    : "Member"}
-                </span>
-
-              </div>
-
-            </div>
-
-            <Flame
-              size={16}
-              style={{
-                color: "#f472b6",
-              }}
-            />
-
-          </div>
-
-        </div>
-      </aside>
-
-      {/* ========================================================
-          MAIN CHAT
-      ======================================================== */}
-
+      {/* Main Chat */}
       <main className="cxchat-chat-main">
-
         <div className="cxchat-chat-card">
-
-          {/* Chat Header */}
-
-          <header className="cxchat-chat-header">
-
-            <div className="cxchat-header-left">
-
-              {/* Mobile Menu */}
-
-              <button
-                onClick={() =>
-                  setMobileMenuOpen(true)
-                }
-                className="cxchat-mobile-menu-btn"
-              >
-                <Menu size={22} />
-              </button>
-
-              {/* Header Icon */}
-
-              <div className="cxchat-header-icon">
-
-                {activeTab === "group" ? (
-                  <Users size={18} />
-                ) : (
-                  <Shield size={18} />
-                )}
-
-              </div>
-
-              {/* Header Title */}
-
-              <div className="cxchat-header-title-box">
-
-                <h1>
-                  {activeTab === "group"
-                    ? "Group Chat - Community X"
-                    : "Admin Announcements"}
-                </h1>
-
-                <p className="cxchat-header-subtitle">
-
-                  <span>
-                    360 Members
-                  </span>
-
-                  <span>•</span>
-
-                  <span className="cxchat-admin-dot-badge">
-
-                    <span className="cxchat-dot-indicator" />
-
-                    Admin
-
-                  </span>
-
-                </p>
-
-              </div>
-            </div>
-
-            {/* Access Badge */}
-
-            <div className="cxchat-access-badge">
-
-              <Crown size={12} />
-
-              Executive Access
-
-            </div>
-
-          </header>
-
-          {/* ====================================================
-              MESSAGES
-          ==================================================== */}
-
-          <div className="cxchat-messages-container">
-
-            <div className="cxchat-messages-glow-1" />
-            <div className="cxchat-messages-glow-2" />
-
-            {/* Loading */}
-
-            {loading && (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "20px",
-                  opacity: 0.7,
-                }}
-              >
-                Loading messages...
-              </div>
-            )}
-
-            {/* Empty State */}
-
-            {!loading &&
-              currentMessages.length === 0 && (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "40px 20px",
-                    opacity: 0.6,
-                  }}
-                >
-                  No messages yet.
-                </div>
-              )}
-
-            {/* Message List */}
-
-            {currentMessages.map((msg) => {
-
-              const isSelf =
-                msg.senderId?.toLowerCase() ===
-                CURRENT_USER.walletAddress?.toLowerCase();
-
-              const isEditing =
-                editingMessageId === msg.id;
-
-              return (
-                <div
-                  key={msg.id}
-                  className={`cxchat-message-row ${
-                    isSelf
-                      ? "cxchat-message-row-self"
-                      : ""
-                  }`}
-                >
-
-                  {/* Avatar */}
-
-                  <div className="cxchat-avatar-container">
-
-                    {msg.isAdmin &&
-                    !msg.avatar ? (
-                      <div className="cxchat-msg-admin-avatar">
-
-                        <Crown
-                          size={18}
-                          style={{
-                            color: "#fef08a",
-                          }}
-                        />
-
-                      </div>
-                    ) : (
-                      <img
-                        src={
-                          msg.avatar ||
-                          DEFAULT_AVATAR
-                        }
-                        alt={msg.senderName}
-                        className="cxchat-msg-avatar"
-                      />
-                    )}
-
-                  </div>
-
-                  {/* Message */}
-
-                  <div
-                    className={`cxchat-msg-wrapper ${
-                      isSelf
-                        ? "cxchat-msg-wrapper-self"
-                        : "cxchat-msg-wrapper-other"
-                    }`}
-                  >
-
-                    <div
-                      className={`cxchat-message-bubble ${
-                        isSelf
-                          ? "cxchat-bubble-self"
-                          : "cxchat-bubble-other"
-                      }`}
-                    >
-
-                      {/* Message Header */}
-
-                      <div className="cxchat-msg-header-info">
-
-                        <span
-                          className={
-                            isSelf
-                              ? "sender-name-self"
-                              : "sender-name-other"
-                          }
-                        >
-                          {msg.senderName}
-                        </span>
-
-                        {msg.isAdmin && (
-                          <span className="cxchat-admin-tag">
-                            ADMIN
-                          </span>
-                        )}
-
-                      </div>
-
-                      {/* EDIT MODE */}
-
-                      {isEditing ? (
-
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "8px",
-                            marginTop: "6px",
-                          }}
-                        >
-
-                          <input
-                            type="text"
-                            value={editingText}
-                            onChange={(e) =>
-                              setEditingText(
-                                e.target.value
-                              )
-                            }
-                            autoFocus
-                            style={{
-                              width: "100%",
-                              padding: "8px 10px",
-                              borderRadius: "8px",
-                              border:
-                                "1px solid rgba(244, 114, 182, 0.5)",
-                              background:
-                                "rgba(0, 0, 0, 0.35)",
-                              color: "inherit",
-                              outline: "none",
-                            }}
-                            onKeyDown={(e) => {
-
-                              if (
-                                e.key ===
-                                "Enter"
-                              ) {
-                                handleUpdateMessage(
-                                  msg.id
-                                );
-                              }
-
-                              if (
-                                e.key ===
-                                "Escape"
-                              ) {
-                                handleCancelEdit();
-                              }
-
-                            }}
-                          />
-
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: "6px",
-                              justifyContent:
-                                "flex-end",
-                            }}
-                          >
-
-                            <button
-                              type="button"
-                              onClick={
-                                handleCancelEdit
-                              }
-                              disabled={
-                                updatingMessage
-                              }
-                              style={{
-                                display: "flex",
-                                alignItems:
-                                  "center",
-                                gap: "4px",
-                                border: "none",
-                                background:
-                                  "transparent",
-                                color:
-                                  "#fca5a5",
-                                cursor:
-                                  "pointer",
-                                fontSize: "12px",
-                              }}
-                            >
-                              <XCircle size={14} />
-                              Cancel
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleUpdateMessage(
-                                  msg.id
-                                )
-                              }
-                              disabled={
-                                updatingMessage
-                              }
-                              style={{
-                                display: "flex",
-                                alignItems:
-                                  "center",
-                                gap: "4px",
-                                border: "none",
-                                background:
-                                  "transparent",
-                                color:
-                                  "#86efac",
-                                cursor:
-                                  "pointer",
-                                fontSize: "12px",
-                              }}
-                            >
-                              <Check size={14} />
-
-                              {updatingMessage
-                                ? "Saving..."
-                                : "Save"}
-
-                            </button>
-
-                          </div>
-
-                        </div>
-
-                      ) : (
-
-                        <p className="cxchat-msg-text">
-                          {msg.text}
-                        </p>
-
-                      )}
-
-                      {/* Message Footer */}
-
-                      <div className="cxchat-msg-footer-info">
-
-                        <span>
-                          {msg.time}
-                        </span>
-
-                        {isSelf && (
-                          <CheckCheck
-                            size={13}
-                            style={{
-                              color:
-                                "#fbcfe8",
-                            }}
-                          />
-                        )}
-
-                      </div>
-
-                    </div>
-
-                    {/* EDIT / DELETE BUTTONS */}
-
-                    {isSelf &&
-                      activeTab ===
-                        "group" &&
-                      !isEditing && (
-
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "5px",
-                            marginTop: "5px",
-                            justifyContent:
-                              "flex-end",
-                          }}
-                        >
-
-                          {/* Edit */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleStartEdit(
-                                msg
-                              )
-                            }
-                            title="Edit message"
-                            style={{
-                              display: "flex",
-                              alignItems:
-                                "center",
-                              justifyContent:
-                                "center",
-                              width: "28px",
-                              height: "28px",
-                              borderRadius:
-                                "7px",
-                              border:
-                                "1px solid rgba(244, 114, 182, 0.25)",
-                              background:
-                                "rgba(244, 114, 182, 0.08)",
-                              color:
-                                "#f9a8d4",
-                              cursor:
-                                "pointer",
-                            }}
-                          >
-                            <Pencil size={13} />
-                          </button>
-
-                          {/* Delete */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDeleteMessage(
-                                msg.id
-                              )
-                            }
-                            disabled={
-                              deletingMessageId ===
-                              msg.id
-                            }
-                            title="Delete message"
-                            style={{
-                              display: "flex",
-                              alignItems:
-                                "center",
-                              justifyContent:
-                                "center",
-                              width: "28px",
-                              height: "28px",
-                              borderRadius:
-                                "7px",
-                              border:
-                                "1px solid rgba(248, 113, 113, 0.25)",
-                              background:
-                                "rgba(248, 113, 113, 0.08)",
-                              color:
-                                "#fca5a5",
-                              cursor:
-                                "pointer",
-                              opacity:
-                                deletingMessageId ===
-                                msg.id
-                                  ? 0.5
-                                  : 1,
-                            }}
-                          >
-                            <Trash2 size={13} />
-                          </button>
-
-                        </div>
-
-                      )}
-
-                  </div>
-
-                </div>
-              );
-            })}
-
-            <div ref={messagesEndRef} />
-
-          </div>
-
-          {/* ====================================================
-              INPUT
-          ==================================================== */}
-
-          <footer className="cxchat-chat-footer">
-
-            {/* Emoji Picker */}
-
-            {showEmojiPicker && (
-
-              <div className="cxchat-emoji-picker-popup">
-
-                {[
-                  "👍",
-                  "🎉",
-                  "👏",
-                  "❤️",
-                  "🔥",
-                  "🚀",
-                  "😊",
-                  "🙌",
-                ].map((emoji) => (
-
-                  <button
-                    key={emoji}
-                    onClick={() =>
-                      addEmoji(emoji)
-                    }
-                    className="cxchat-emoji-btn"
-                    type="button"
-                  >
-                    {emoji}
-                  </button>
-
-                ))}
-
-              </div>
-
-            )}
-
-            {/* Message Form */}
-
-            <form
-              onSubmit={handleSendMessage}
-              className="cxchat-chat-input-form"
-            >
-
-              {/* Input */}
-
-              <div className="cxchat-input-field-wrapper">
-
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={(e) =>
-                    setInputText(
-                      e.target.value
-                    )
-                  }
-                  placeholder="Type a message..."
-                  className="cxchat-chat-text-input"
-                />
-
-                {/* Emoji Button */}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowEmojiPicker(
-                      !showEmojiPicker
-                    )
-                  }
-                  className="cxchat-input-icon-btn"
-                  title="Add emoji"
-                >
-                  <Smile size={20} />
-                </button>
-
-              </div>
-
-              {/* Attachment */}
-
-              <button
-                type="button"
-                className="cxchat-action-icon-btn"
-                title="Attach file"
-              >
-                <Paperclip size={20} />
-              </button>
-
-              {/* Send */}
-
-              <button
-                type="submit"
-                disabled={
-                  !inputText.trim() ||
-                  sending
-                }
-                className="cxchat-send-submit-btn"
-              >
-                <Send size={18} />
-              </button>
-
-            </form>
-
-          </footer>
-
+          {/* Header */}
+          <ChatHeader
+            activeTab={activeTab}
+            setMobileMenuOpen={
+              setMobileMenuOpen
+            }
+          />
+
+          {/* Messages */}
+          <ChatMessages
+            messages={currentMessages}
+            loading={loading}
+            activeTab={activeTab}
+            currentUser={currentUser}
+            editingMessageId={
+              editingMessageId
+            }
+            editingText={editingText}
+            setEditingText={
+              setEditingText
+            }
+            handleStartEdit={
+              handleStartEdit
+            }
+            handleCancelEdit={
+              handleCancelEdit
+            }
+            handleUpdateMessage={
+              handleUpdateMessage
+            }
+            updatingMessage={
+              updatingMessage
+            }
+            handleDeleteMessage={
+              handleDeleteMessage
+            }
+            deletingMessageId={
+              deletingMessageId
+            }
+            messagesEndRef={
+              messagesEndRef
+            }
+          />
+
+          {/* Input */}
+          <ChatInput
+            inputText={inputText}
+            setInputText={setInputText}
+            showEmojiPicker={
+              showEmojiPicker
+            }
+            setShowEmojiPicker={
+              setShowEmojiPicker
+            }
+            addEmoji={addEmoji}
+            handleSendMessage={
+              handleSendMessage
+            }
+            sending={sending}
+          />
         </div>
-
       </main>
-
     </div>
   );
-}
+};
 
+export default CommunityChat;
