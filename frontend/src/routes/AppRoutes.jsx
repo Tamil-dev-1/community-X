@@ -6,6 +6,7 @@ import ProfilePage from '../pages/ProfilePage'
 import CommunityChat from '../pages/communityChat/CommunityChat'
 import AdminChat from '../pages/adminpage/AdminChat'
 import MemberPrivateChat from '../pages/MemberPrivateChat/MemberPrivateChat'
+import AdminLogin from '../pages/adminLogin/AdminLogin'
 
 const AppRoutes = () => {
   return (
@@ -17,6 +18,7 @@ const AppRoutes = () => {
         <Route  path="/community-chat" element={<CommunityChat />} />
         <Route  path="/admin-chat" element={<AdminChat />} />
         <Route  path="/private-chat" element={<MemberPrivateChat />} />
+        <Route  path="/login" element={<AdminLogin />} />
       </Routes>
     </>
   )

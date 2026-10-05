@@ -260,8 +260,12 @@ export const deleteGroupMessage = async (
 
 export const getPrivateMessages = async (req, res) => {
   try {
-    const myWallet = req.user.walletAddress;
+    const myWallet = req.user?.walletAddress;
     const { wallet } = req.params;
+
+    // --------------------------------------------------------
+    // VALIDATE AUTHENTICATED WALLET
+    // --------------------------------------------------------
 
     if (!myWallet) {
       return res.status(401).json({
@@ -270,6 +274,10 @@ export const getPrivateMessages = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------------
+    // VALIDATE TARGET WALLET
+    // --------------------------------------------------------
+
     if (!wallet) {
       return res.status(400).json({
         success: false,
@@ -277,8 +285,21 @@ export const getPrivateMessages = async (req, res) => {
       });
     }
 
-    const myWalletLower = myWallet.toLowerCase();
-    const otherWalletLower = wallet.toLowerCase();
+    const myWalletLower = myWallet.toLowerCase().trim();
+    const otherWalletLower = wallet.toLowerCase().trim();
+
+    console.log("=================================");
+    console.log("GET PRIVATE MESSAGES");
+    console.log("My Wallet:", myWalletLower);
+    console.log("Other Wallet:", otherWalletLower);
+    console.log("=================================");
+
+    // --------------------------------------------------------
+    // FIND BOTH DIRECTIONS
+    //
+    // Admin -> Member
+    // Member -> Admin
+    // --------------------------------------------------------
 
     const messages = await Message.find({
       chatType: "PRIVATE",
@@ -295,6 +316,30 @@ export const getPrivateMessages = async (req, res) => {
     }).sort({
       createdAt: 1,
     });
+
+    // --------------------------------------------------------
+    // DEBUG
+    // --------------------------------------------------------
+
+    console.log(
+      "Private messages found:",
+      messages.length
+    );
+
+    messages.forEach((msg, index) => {
+      console.log(`Message ${index + 1}:`);
+      console.log("ID:", msg._id.toString());
+      console.log("Sender:", msg.senderWallet);
+      console.log("Receiver:", msg.receiverWallet);
+      console.log("Message:", msg.message);
+      console.log("Chat Type:", msg.chatType);
+    });
+
+    console.log("=================================");
+
+    // --------------------------------------------------------
+    // RESPONSE
+    // --------------------------------------------------------
 
     return res.status(200).json({
       success: true,
@@ -313,6 +358,8 @@ export const getPrivateMessages = async (req, res) => {
     });
   }
 };
+
+
 
 
 // ============================================================

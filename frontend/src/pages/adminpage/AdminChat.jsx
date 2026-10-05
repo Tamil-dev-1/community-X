@@ -9,30 +9,55 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 
 import { io } from "socket.io-client";
 
-import "./adminChat.css";
+import "./AdminChat.css";
 
 // ============================================================
 // API / SOCKET CONFIG
 // ============================================================
 
-const API_URL =
-  "http://localhost:5000/api/messages";
+const API_URL = "http://localhost:5000/api/messages";
 
-const SOCKET_URL =
-  "http://localhost:5000";
+const COMMUNITY_API_URL =
+  "http://localhost:5000/api/community";
+
+const SOCKET_URL = "http://localhost:5000";
 
 // ============================================================
-// ADMIN USER
+// DEFAULT AVATAR
+// ============================================================
+
+const DEFAULT_AVATAR =
+  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80";
+
+// ============================================================
+// LOCAL STORAGE KEY
+// ============================================================
+
+const ADMIN_ACTIVE_MEMBER_KEY =
+  "adminActiveMemberWallet";
+
+// ============================================================
+// GET ADMIN WALLET
 // ============================================================
 
 const getAdminWallet = () => {
   return (
     localStorage.getItem("communityXWallet") || ""
-  ).toLowerCase();
+  )
+    .toLowerCase()
+    .trim();
 };
 
 // ============================================================
-// NAVIGATION
+// NORMALIZE WALLET
+// ============================================================
+
+const normalizeWallet = (wallet) => {
+  return (wallet || "").toLowerCase().trim();
+};
+
+// ============================================================
+// ADMIN NAVIGATION
 // ============================================================
 
 const NAV_ITEMS = [
@@ -59,29 +84,295 @@ const NAV_ITEMS = [
 ];
 
 // ============================================================
-// TEMPORARY MEMBER DATA
-// ============================================================
-// We will replace this with real Community X members
-// from MongoDB in the next step.
-//
-// This wallet is the Wallet 2 that you already tested
-// successfully with your private-message API.
+// MEMBERS DASHBOARD
 // ============================================================
 
-const members = [
-  {
-    id: "u_tamil",
+function MembersDashboard({
+  memberList,
+  filteredMembers,
+  search,
+  setSearch,
+  loadingMembers,
+  memberError,
+  adminWallet,
+  handleSelectMember,
+  setActiveNav,
+}) {
+  const [memberFilter, setMemberFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("name");
 
-    walletAddress:
-      "0x2db4d6fa605a41B6953A28C7a2E6a312Da336EC1",
+  const onlineMembers = memberList.filter(
+    (member) => member.status === "online"
+  );
 
-    name: "Tamil",
+  const offlineMembers = memberList.filter(
+    (member) => member.status !== "online"
+  );
 
-    status: "online",
+  const visibleMembers = [...filteredMembers]
+    .filter((member) => {
+      if (memberFilter === "online") {
+        return member.status === "online";
+      }
 
-    avatar: "",
-  },
-];
+      if (memberFilter === "offline") {
+        return member.status !== "online";
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "status") {
+        return Number(b.status === "online") - Number(a.status === "online");
+      }
+
+      if (sortBy === "username") {
+        return (a.username || "").localeCompare(b.username || "");
+      }
+
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+  const copyWallet = async (wallet) => {
+    try {
+      await navigator.clipboard.writeText(wallet);
+    } catch (error) {
+      console.warn("Wallet copy failed:", error);
+    }
+  };
+
+  return (
+    <section className="members-dashboard">
+      <div className="members-dashboard-header">
+        <div>
+          <div className="members-eyebrow">COMMUNITY X / ADMIN</div>
+          <h1 className="members-dashboard-title">Member Management</h1>
+          <p className="members-dashboard-subtitle">
+            Monitor Community X members and open private conversations.
+          </p>
+        </div>
+
+        <div className="members-header-badge">
+          <i className="bi bi-shield-check" />
+          <span>Admin Access</span>
+        </div>
+      </div>
+
+      <div className="member-stat-grid">
+        <div className="member-stat-card">
+          <div className="member-stat-icon purple">
+            <i className="bi bi-people" />
+          </div>
+          <div>
+            <span className="member-stat-label">TOTAL MEMBERS</span>
+            <strong className="member-stat-value">{memberList.length}</strong>
+          </div>
+        </div>
+
+        <div className="member-stat-card">
+          <div className="member-stat-icon green">
+            <i className="bi bi-activity" />
+          </div>
+          <div>
+            <span className="member-stat-label">ACTIVE ONLINE</span>
+            <strong className="member-stat-value green-text">{onlineMembers.length}</strong>
+          </div>
+        </div>
+
+        <div className="member-stat-card">
+          <div className="member-stat-icon slate">
+            <i className="bi bi-moon" />
+          </div>
+          <div>
+            <span className="member-stat-label">OFFLINE</span>
+            <strong className="member-stat-value">{offlineMembers.length}</strong>
+          </div>
+        </div>
+
+        <div className="member-stat-card">
+          <div className="member-stat-icon purple">
+            <i className="bi bi-wallet2" />
+          </div>
+          <div>
+            <span className="member-stat-label">TOTAL VOLUME</span>
+            <strong className="member-stat-value">—</strong>
+            <small className="member-stat-note">Balance API not connected</small>
+          </div>
+        </div>
+      </div>
+
+      <div className="members-toolbar">
+        <div className="members-search-box">
+          <i className="bi bi-search" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search members by name, username, or wallet hash..."
+          />
+          {search && (
+            <button
+              type="button"
+              className="members-clear-search"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+            >
+              <i className="bi bi-x" />
+            </button>
+          )}
+        </div>
+
+        <div className="members-filter-group" role="group" aria-label="Member status filter">
+          {[
+            ["all", "All"],
+            ["online", "Online"],
+            ["offline", "Offline"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`members-filter-btn ${memberFilter === key ? "active" : ""}`}
+              onClick={() => setMemberFilter(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <label className="members-sort-box">
+          <span>Sort by:</span>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="name">Name</option>
+            <option value="username">Username</option>
+            <option value="status">Status</option>
+          </select>
+          <i className="bi bi-chevron-down" />
+        </label>
+      </div>
+
+      <div className="members-result-bar">
+        <span>
+          Showing <strong>{visibleMembers.length}</strong> of <strong>{memberList.length}</strong> members
+        </span>
+        <span className="members-result-live">
+          <span className="live-dot" /> Live directory
+        </span>
+      </div>
+
+      <div className="members-table-wrap">
+        <div className="members-table-head">
+          <span>MEMBER</span>
+          <span>CONTACT / USERNAME</span>
+          <span>WALLET ADDRESS</span>
+          <span>STATUS</span>
+          <span>ACTION</span>
+        </div>
+
+        {loadingMembers ? (
+          <div className="members-empty-state">
+            <div className="spinner-border spinner-border-sm" role="status" />
+            <span>Loading members...</span>
+          </div>
+        ) : memberError ? (
+          <div className="members-empty-state error">
+            <i className="bi bi-exclamation-triangle" />
+            <span>{memberError}</span>
+          </div>
+        ) : visibleMembers.length === 0 ? (
+          <div className="members-empty-state">
+            <i className="bi bi-person-x" />
+            <span>No members match your search or filter.</span>
+          </div>
+        ) : (
+          <div className="members-table-body">
+            {visibleMembers.map((member) => {
+              const isAdminMember =
+                normalizeWallet(member.walletAddress) === normalizeWallet(adminWallet);
+
+              return (
+                <div className="member-management-row" key={member.id}>
+                  <div className="member-primary-cell">
+                    <div className={`member-large-avatar ${isAdminMember ? "admin" : ""}`}>
+                      {member.avatar ? (
+                        <img src={member.avatar} alt={member.name} />
+                      ) : (
+                        member.name?.charAt(0).toUpperCase()
+                      )}
+                      <span className={`member-avatar-presence ${member.status === "online" ? "online" : "offline"}`} />
+                    </div>
+
+                    <div className="member-primary-copy">
+                      <div className="member-name-line">
+                        <strong>{member.name}</strong>
+                        {isAdminMember && <span className="member-role-badge">ADMIN</span>}
+                      </div>
+                      <span className="member-role-text">
+                        {isAdminMember ? "Community Administrator" : "Community Member"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="member-contact-cell">
+                    <span className="member-username">@{member.username || "member"}</span>
+                    <span className="member-contact-muted">Wallet verified</span>
+                  </div>
+
+                  <div className="member-wallet-cell">
+                    <div className="wallet-chip">
+                      <i className="bi bi-wallet2" />
+                      <span>{member.walletAddress.slice(0, 6)}...{member.walletAddress.slice(-5).toUpperCase()}</span>
+                      <button
+                        type="button"
+                        onClick={() => copyWallet(member.walletAddress)}
+                        aria-label="Copy wallet address"
+                        title="Copy wallet address"
+                      >
+                        <i className="bi bi-copy" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="member-status-cell">
+                    <span className={`member-status-pill ${member.status === "online" ? "online" : "offline"}`}>
+                      <span className="member-status-dot" />
+                      {member.status === "online" ? "Online" : "Offline"}
+                    </span>
+                  </div>
+
+                  <div className="member-action-cell">
+                    {!isAdminMember ? (
+                      <button
+                        type="button"
+                        className="member-message-btn"
+                        onClick={() => {
+                          handleSelectMember(member);
+                          setActiveNav("private");
+                        }}
+                      >
+                        <i className="bi bi-chat-square-dots" />
+                        <span>Msg</span>
+                      </button>
+                    ) : (
+                      <span className="member-admin-label">Current Admin</span>
+                    )}
+
+                    <button
+                      type="button"
+                      className="member-more-btn"
+                      aria-label={`More options for ${member.name}`}
+                    >
+                      <i className="bi bi-three-dots-vertical" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
 // ============================================================
 // COMPONENT
@@ -93,25 +384,16 @@ export default function AdminChat() {
   // ==========================================================
 
   const token =
-    localStorage.getItem(
-      "communityXToken"
-    );
+    localStorage.getItem("communityXToken");
 
-  const adminWallet =
-    getAdminWallet();
+  const adminWallet = getAdminWallet();
 
   const adminUser = {
-    id:
-      adminWallet || "u_admin",
-
-    walletAddress:
-      adminWallet,
-
+    id: adminWallet || "u_admin",
+    walletAddress: adminWallet,
     name: "Admin",
-
     isAdmin: true,
-
-    avatar: "",
+    avatar: DEFAULT_AVATAR,
   };
 
   // ==========================================================
@@ -121,19 +403,42 @@ export default function AdminChat() {
   const [activeNav, setActiveNav] =
     useState("private");
 
-  const [memberList] =
-    useState(members);
+  const [memberList, setMemberList] =
+    useState([]);
 
   const [activeMemberId, setActiveMemberId] =
-    useState("u_tamil");
+    useState("");
 
+  /*
+    conversations are stored using wallet address:
+
+    {
+      "0x072271...": [
+        message1,
+        message2
+      ]
+    }
+  */
   const [conversations, setConversations] =
     useState({});
+
+  // GROUP CHAT
+  const [groupMessages, setGroupMessages] =
+    useState([]);
+
+  const [groupLoading, setGroupLoading] =
+    useState(false);
 
   const [search, setSearch] =
     useState("");
 
   const [draft, setDraft] =
+    useState("");
+
+  const [loadingMembers, setLoadingMembers] =
+    useState(false);
+
+  const [memberError, setMemberError] =
     useState("");
 
   const [loading, setLoading] =
@@ -152,41 +457,60 @@ export default function AdminChat() {
   // REFS
   // ==========================================================
 
-  const bottomRef =
-    useRef(null);
+  const bottomRef = useRef(null);
 
-  const socketRef =
-    useRef(null);
+  const socketRef = useRef(null);
 
   // ==========================================================
   // ACTIVE MEMBER
   // ==========================================================
 
-  const activeMember =
-    memberList.find(
-      (member) =>
-        member.id === activeMemberId
-    );
-
-  const activeMessages =
-    conversations[
-      activeMemberId
-    ] || [];
+  const activeMember = memberList.find(
+    (member) =>
+      member.id === activeMemberId
+  );
 
   // ==========================================================
-  // SEARCH
+  // ACTIVE MEMBER WALLET
+  // ==========================================================
+
+  const activeMemberWallet =
+    normalizeWallet(
+      activeMember?.walletAddress
+    );
+
+  // ==========================================================
+  // ACTIVE MESSAGES
+  // ==========================================================
+
+  const activeMessages =
+    conversations[activeMemberWallet] || [];
+
+  // ==========================================================
+  // SEARCH MEMBERS
   // ==========================================================
 
   const filteredMembers =
-    memberList.filter((member) =>
-      member.name
-        .toLowerCase()
-        .includes(
-          search
-            .trim()
-            .toLowerCase()
-        )
-    );
+    memberList.filter((member) => {
+      const searchText =
+        search.trim().toLowerCase();
+
+      if (!searchText) {
+        return true;
+      }
+
+      return (
+        member.name
+          .toLowerCase()
+          .includes(searchText) ||
+        member.username
+          .toLowerCase()
+          .includes(searchText) ||
+        member.walletAddress
+          .toLowerCase()
+          .includes(searchText)
+      );
+    });
 
   // ==========================================================
   // SCROLL TO BOTTOM
@@ -199,8 +523,213 @@ export default function AdminChat() {
     });
   }, [
     activeMessages.length,
+    groupMessages.length,
     activeMemberId,
+    activeNav,
   ]);
+
+  // ==========================================================
+  // FETCH COMMUNITY MEMBERS
+  // ==========================================================
+
+  useEffect(() => {
+    const fetchCommunityMembers =
+      async () => {
+        if (!token) {
+          console.error(
+            "Community X JWT token not found."
+          );
+
+          setMemberError(
+            "Authentication token not found."
+          );
+
+          return;
+        }
+
+        try {
+          setLoadingMembers(true);
+
+          setMemberError("");
+
+          const response =
+            await fetch(
+              `${COMMUNITY_API_URL}/members`,
+              {
+                method: "GET",
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              }
+            );
+
+          // ==================================================
+          // JWT ERROR
+          // ==================================================
+
+          if (response.status === 401) {
+            throw new Error(
+              "Authentication failed. Please connect your wallet again."
+            );
+          }
+
+          // ==================================================
+          // OTHER ERROR
+          // ==================================================
+
+          if (!response.ok) {
+            throw new Error(
+              "Failed to fetch Community X members."
+            );
+          }
+
+          const data =
+            await response.json();
+
+          // ==================================================
+          // API ERROR
+          // ==================================================
+
+          if (!data.success) {
+            throw new Error(
+              data.message ||
+                "Failed to fetch members."
+            );
+          }
+
+          // ==================================================
+          // FORMAT MEMBERS
+          // ==================================================
+
+          const formattedMembers =
+            (data.members || [])
+              .map((member) => ({
+                id: member._id,
+
+                walletAddress:
+                  normalizeWallet(
+                    member.walletAddress
+                  ),
+
+                name:
+                  member.fullName ||
+                  member.username ||
+                  "Community Member",
+
+                username:
+                  member.username || "",
+
+                status: "offline",
+
+                avatar:
+                  member.profileImage || "",
+              }))
+              .filter(
+                (member) =>
+                  member.walletAddress
+              );
+
+          console.log(
+            "Community X members:",
+            formattedMembers
+          );
+
+          setMemberList(
+            formattedMembers
+          );
+
+          // ==================================================
+          // RESTORE PREVIOUS MEMBER
+          // ==================================================
+
+          if (
+            formattedMembers.length > 0
+          ) {
+            const savedWallet =
+              normalizeWallet(
+                localStorage.getItem(
+                  ADMIN_ACTIVE_MEMBER_KEY
+                )
+              );
+
+            const savedMember =
+              formattedMembers.find(
+                (member) =>
+                  normalizeWallet(
+                    member.walletAddress
+                  ) === savedWallet
+              );
+
+            if (savedMember) {
+              console.log(
+                "Restoring previous member:",
+                savedMember.name,
+                savedMember.walletAddress
+              );
+
+              setActiveMemberId(
+                savedMember.id
+              );
+            } else {
+              console.log(
+                "No saved member found. Selecting first member."
+              );
+
+              setActiveMemberId(
+                formattedMembers[0].id
+              );
+
+              localStorage.setItem(
+                ADMIN_ACTIVE_MEMBER_KEY,
+                formattedMembers[0].walletAddress
+              );
+            }
+          } else {
+            setActiveMemberId("");
+          }
+        } catch (error) {
+          console.error(
+            "Fetch Community Members Error:",
+            error
+          );
+
+          setMemberError(
+            error.message ||
+              "Failed to load members."
+          );
+        } finally {
+          setLoadingMembers(false);
+        }
+      };
+
+    fetchCommunityMembers();
+  }, [token]);
+
+  // ==========================================================
+  // SAVE ACTIVE MEMBER
+  // ==========================================================
+
+  useEffect(() => {
+    if (!activeMember?.walletAddress) {
+      return;
+    }
+
+    const wallet =
+      normalizeWallet(
+        activeMember.walletAddress
+      );
+
+    localStorage.setItem(
+      ADMIN_ACTIVE_MEMBER_KEY,
+      wallet
+    );
+
+    console.log(
+      "Active admin chat member saved:",
+      wallet
+    );
+  }, [activeMember]);
 
   // ==========================================================
   // SOCKET.IO CONNECTION
@@ -221,9 +750,9 @@ export default function AdminChat() {
     socketRef.current =
       socket;
 
-    // --------------------------------------------------------
+    // ========================================================
     // CONNECT
-    // --------------------------------------------------------
+    // ========================================================
 
     socket.on(
       "connect",
@@ -233,17 +762,21 @@ export default function AdminChat() {
           socket.id
         );
 
-        // Authenticate socket using JWT
+        // Backend expects:
+        // { token }
+
         socket.emit(
           "authenticate-socket",
-          token
+          {
+            token,
+          }
         );
       }
     );
 
-    // --------------------------------------------------------
+    // ========================================================
     // SOCKET AUTHENTICATED
-    // --------------------------------------------------------
+    // ========================================================
 
     socket.on(
       "socket-authenticated",
@@ -255,23 +788,23 @@ export default function AdminChat() {
       }
     );
 
-    // --------------------------------------------------------
+    // ========================================================
     // SOCKET AUTH ERROR
-    // --------------------------------------------------------
+    // ========================================================
 
     socket.on(
       "socket-auth-error",
       (data) => {
         console.error(
           "Private socket authentication failed:",
-          data.message
+          data?.message
         );
       }
     );
 
-    // --------------------------------------------------------
+    // ========================================================
     // DISCONNECT
-    // --------------------------------------------------------
+    // ========================================================
 
     socket.on(
       "disconnect",
@@ -282,9 +815,9 @@ export default function AdminChat() {
       }
     );
 
-    // --------------------------------------------------------
+    // ========================================================
     // CLEANUP
-    // --------------------------------------------------------
+    // ========================================================
 
     return () => {
       socket.disconnect();
@@ -293,6 +826,121 @@ export default function AdminChat() {
         null;
     };
   }, [token]);
+
+  // ==========================================================
+  // RECEIVE GROUP MESSAGE
+  // ==========================================================
+
+  useEffect(() => {
+    const socket =
+      socketRef.current;
+
+    if (!socket) {
+      return;
+    }
+
+    const handleNewGroupMessage =
+      (newMessage) => {
+        if (!newMessage) {
+          return;
+        }
+
+        if (
+          newMessage.chatType &&
+          newMessage.chatType !== "GROUP"
+        ) {
+          return;
+        }
+
+        const messageId =
+          newMessage._id ||
+          newMessage.id;
+
+        if (!messageId) {
+          return;
+        }
+
+        const senderWallet =
+          normalizeWallet(
+            newMessage.senderWallet
+          );
+
+        const formattedMessage = {
+          id: messageId,
+
+          senderId:
+            newMessage.senderWallet,
+
+          senderWallet,
+
+          receiverWallet: null,
+
+          senderName:
+            newMessage.senderName ||
+            "Community Member",
+
+          senderAvatar:
+            newMessage.senderAvatar ||
+            "",
+
+          isAdmin:
+            senderWallet ===
+            normalizeWallet(adminWallet),
+
+          text:
+            newMessage.message ||
+            "",
+
+          time: new Date(
+            newMessage.createdAt ||
+              Date.now()
+          ).toLocaleTimeString(
+            [],
+            {
+              hour: "2-digit",
+              minute: "2-digit",
+            }
+          ),
+        };
+
+        setGroupMessages(
+          (prev) => {
+            const exists =
+              prev.some(
+                (msg) =>
+                  String(msg.id) ===
+                  String(formattedMessage.id)
+              );
+
+            if (exists) {
+              return prev;
+            }
+
+            return [
+              ...prev,
+              formattedMessage,
+            ];
+          }
+        );
+
+        console.log(
+          "Admin group message received:",
+          formattedMessage
+        );
+      };
+
+    socket.on(
+      "new-group-message",
+      handleNewGroupMessage
+    );
+
+    return () => {
+      socket.off(
+        "new-group-message",
+        handleNewGroupMessage
+      );
+    };
+  }, [adminWallet]);
 
   // ==========================================================
   // RECEIVE PRIVATE MESSAGE
@@ -308,119 +956,173 @@ export default function AdminChat() {
 
     const handleNewPrivateMessage =
       (newMessage) => {
-        if (!activeMember) {
-          return;
-        }
-
         if (
           !newMessage?.senderWallet ||
           !newMessage?.receiverWallet
         ) {
+          console.warn(
+            "Invalid private message received:",
+            newMessage
+          );
+
           return;
         }
 
         const senderWallet =
-          newMessage.senderWallet.toLowerCase();
+          normalizeWallet(
+            newMessage.senderWallet
+          );
 
         const receiverWallet =
-          newMessage.receiverWallet.toLowerCase();
+          normalizeWallet(
+            newMessage.receiverWallet
+          );
 
-        const selectedMemberWallet =
-          activeMember.walletAddress.toLowerCase();
+        const currentAdminWallet =
+          normalizeWallet(
+            adminWallet
+          );
 
-        // ----------------------------------------------------
-        // Check whether this message belongs to
-        // the currently selected member conversation.
-        // ----------------------------------------------------
+        // ====================================================
+        // VERIFY MESSAGE BELONGS TO ADMIN
+        // ====================================================
 
-        const belongsToConversation =
+        const isAdminSender =
           senderWallet ===
-            selectedMemberWallet ||
+          currentAdminWallet;
+
+        const isAdminReceiver =
           receiverWallet ===
-            selectedMemberWallet;
+          currentAdminWallet;
 
         if (
-          !belongsToConversation
+          !isAdminSender &&
+          !isAdminReceiver
         ) {
           return;
         }
 
-        // ----------------------------------------------------
-        // Check whether sender is admin
-        // ----------------------------------------------------
+        // ====================================================
+        // FIND MEMBER WALLET
+        // ====================================================
 
-        const isAdmin =
-          senderWallet ===
-          adminWallet;
+        const memberWallet =
+          isAdminSender
+            ? receiverWallet
+            : senderWallet;
 
-        // ----------------------------------------------------
-        // Format message for UI
-        // ----------------------------------------------------
+        // ====================================================
+        // FIND MEMBER
+        // ====================================================
+
+        const selectedMember =
+          memberList.find(
+            (member) =>
+              normalizeWallet(
+                member.walletAddress
+              ) === memberWallet
+          );
+
+        if (!selectedMember) {
+          console.warn(
+            "Private message member not found:",
+            memberWallet
+          );
+
+          return;
+        }
+
+        // ====================================================
+        // MESSAGE ID
+        // ====================================================
+
+        const messageId =
+          newMessage._id ||
+          newMessage.id;
+
+        if (!messageId) {
+          return;
+        }
+
+        // ====================================================
+        // FORMAT MESSAGE
+        // ====================================================
 
         const formattedMessage = {
-          id:
-            newMessage._id,
+          id: messageId,
 
           senderId:
             newMessage.senderWallet,
 
+          senderWallet:
+            senderWallet,
+
+          receiverWallet:
+            receiverWallet,
+
           senderName:
-            newMessage.senderName,
+            newMessage.senderName ||
+            "Community Member",
 
           senderAvatar:
             newMessage.senderAvatar ||
             "",
 
-          isAdmin,
+          isAdmin:
+            senderWallet ===
+            currentAdminWallet,
 
           text:
-            newMessage.message,
+            newMessage.message ||
+            "",
 
           time: new Date(
-            newMessage.createdAt
+            newMessage.createdAt ||
+              Date.now()
           ).toLocaleTimeString(
             [],
             {
               hour: "2-digit",
-              minute:
-                "2-digit",
+              minute: "2-digit",
             }
           ),
         };
 
-        // ----------------------------------------------------
-        // Prevent duplicate message
-        // ----------------------------------------------------
+        // ====================================================
+        // ADD TO WALLET-BASED CONVERSATION
+        // ====================================================
 
         setConversations(
           (prev) => {
             const existingMessages =
-              prev[
-                activeMemberId
-              ] || [];
+              prev[memberWallet] ||
+              [];
 
             const alreadyExists =
               existingMessages.some(
                 (msg) =>
-                  msg.id ===
-                  formattedMessage.id
+                  String(msg.id) ===
+                  String(formattedMessage.id)
               );
 
-            if (
-              alreadyExists
-            ) {
+            if (alreadyExists) {
               return prev;
             }
 
             return {
               ...prev,
 
-              [activeMemberId]: [
+              [memberWallet]: [
                 ...existingMessages,
                 formattedMessage,
               ],
             };
           }
+        );
+
+        console.log(
+          "Private message received:",
+          formattedMessage
         );
       };
 
@@ -436,8 +1138,172 @@ export default function AdminChat() {
       );
     };
   }, [
-    activeMemberId,
-    activeMember,
+    memberList,
+    adminWallet,
+  ]);
+
+  // ==========================================================
+  // FETCH GROUP MESSAGE HISTORY
+  // ==========================================================
+
+  useEffect(() => {
+    const fetchGroupMessages =
+      async () => {
+        if (activeNav !== "group") {
+          return;
+        }
+
+        if (!token) {
+          console.error(
+            "Community X JWT token not found."
+          );
+
+          setGroupMessages([]);
+          return;
+        }
+
+        try {
+          setGroupLoading(true);
+
+          console.log(
+            "FETCH GROUP CHAT HISTORY"
+          );
+
+          const response =
+            await fetch(
+              `${API_URL}/group`,
+              {
+                method: "GET",
+
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              }
+            );
+
+          if (
+            response.status === 401
+          ) {
+            throw new Error(
+              "Authentication failed. Please connect your wallet again."
+            );
+          }
+
+          if (!response.ok) {
+            const errorData =
+              await response
+                .json()
+                .catch(
+                  () => ({})
+                );
+
+            throw new Error(
+              errorData.message ||
+                "Failed to fetch group messages."
+            );
+          }
+
+          const data =
+            await response.json();
+
+          const serverMessages =
+            Array.isArray(data)
+              ? data
+              : data.messages || [];
+
+          const formattedMessages =
+            serverMessages
+              .filter(
+                (message) =>
+                  !message.chatType ||
+                  message.chatType ===
+                    "GROUP"
+              )
+              .map((msg) => {
+                const senderWallet =
+                  normalizeWallet(
+                    msg.senderWallet
+                  );
+
+                return {
+                  id:
+                    msg._id ||
+                    msg.id,
+
+                  senderId:
+                    msg.senderWallet,
+
+                  senderWallet,
+
+                  receiverWallet:
+                    null,
+
+                  senderName:
+                    msg.senderName ||
+                    "Community Member",
+
+                  senderAvatar:
+                    msg.senderAvatar ||
+                    "",
+
+                  isAdmin:
+                    senderWallet ===
+                    normalizeWallet(
+                      adminWallet
+                    ),
+
+                  text:
+                    msg.message ||
+                    "",
+
+                  time: new Date(
+                    msg.createdAt ||
+                      Date.now()
+                  ).toLocaleTimeString(
+                    [],
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }
+                  ),
+                };
+              });
+
+          console.log(
+            "Group messages loaded from MongoDB:",
+            formattedMessages.length
+          );
+
+          setGroupMessages(
+            formattedMessages
+          );
+        } catch (error) {
+          console.error(
+            "Fetch Group Messages Error:",
+            error
+          );
+
+          setGroupMessages([]);
+
+          if (
+            error.message.includes(
+              "Authentication failed"
+            )
+          ) {
+            alert(
+              error.message
+            );
+          }
+        } finally {
+          setGroupLoading(false);
+        }
+      };
+
+    fetchGroupMessages();
+  }, [
+    activeNav,
+    token,
     adminWallet,
   ]);
 
@@ -460,12 +1326,48 @@ export default function AdminChat() {
           return;
         }
 
+        const memberWallet =
+          normalizeWallet(
+            activeMember.walletAddress
+          );
+
+        if (!memberWallet) {
+          return;
+        }
+
         try {
           setLoading(true);
 
+          console.log(
+            "======================================"
+          );
+
+          console.log(
+            "FETCH PRIVATE CHAT HISTORY"
+          );
+
+          console.log(
+            "Admin wallet:",
+            adminWallet
+          );
+
+          console.log(
+            "Member wallet:",
+            memberWallet
+          );
+
+          console.log(
+            "GET URL:",
+            `${API_URL}/private/${memberWallet}`
+          );
+
+          console.log(
+            "======================================"
+          );
+
           const response =
             await fetch(
-              `${API_URL}/private/${activeMember.walletAddress}`,
+              `${API_URL}/private/${memberWallet}`,
               {
                 method: "GET",
 
@@ -476,46 +1378,53 @@ export default function AdminChat() {
               }
             );
 
-          // --------------------------------------------------
+          // ==================================================
           // JWT ERROR
-          // --------------------------------------------------
+          // ==================================================
 
           if (
-            response.status ===
-            401
+            response.status === 401
           ) {
             throw new Error(
               "Authentication failed. Please connect your wallet again."
             );
           }
 
-          // --------------------------------------------------
+          // ==================================================
           // OTHER ERROR
-          // --------------------------------------------------
+          // ==================================================
 
-          if (
-            !response.ok
-          ) {
+          if (!response.ok) {
             throw new Error(
-              "Failed to fetch private messages"
+              "Failed to fetch private messages."
             );
           }
 
           const data =
             await response.json();
 
-          // --------------------------------------------------
-          // SUCCESS
-          // --------------------------------------------------
+          console.log(
+            "Private history API response:",
+            data
+          );
 
-          if (
-            data.success
-          ) {
+          // ==================================================
+          // SUCCESS
+          // ==================================================
+
+          if (data.success) {
             const formattedMessages =
-              data.messages.map(
-                (msg) => {
+              (data.messages || [])
+                .map((msg) => {
                   const senderWallet =
-                    msg.senderWallet.toLowerCase();
+                    normalizeWallet(
+                      msg.senderWallet
+                    );
+
+                  const receiverWallet =
+                    normalizeWallet(
+                      msg.receiverWallet
+                    );
 
                   const isAdmin =
                     senderWallet ===
@@ -528,8 +1437,15 @@ export default function AdminChat() {
                     senderId:
                       msg.senderWallet,
 
+                    senderWallet:
+                      senderWallet,
+
+                    receiverWallet:
+                      receiverWallet,
+
                     senderName:
-                      msg.senderName,
+                      msg.senderName ||
+                      "Community Member",
 
                     senderAvatar:
                       msg.senderAvatar ||
@@ -538,7 +1454,8 @@ export default function AdminChat() {
                     isAdmin,
 
                     text:
-                      msg.message,
+                      msg.message ||
+                      "",
 
                     time:
                       new Date(
@@ -546,21 +1463,28 @@ export default function AdminChat() {
                       ).toLocaleTimeString(
                         [],
                         {
-                          hour:
-                            "2-digit",
-                          minute:
-                            "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
                         }
                       ),
                   };
-                }
-              );
+                });
+
+            console.log(
+              "Messages loaded from MongoDB:",
+              formattedMessages.length
+            );
+
+            // =================================================
+            // IMPORTANT
+            // Store using wallet address
+            // =================================================
 
             setConversations(
               (prev) => ({
                 ...prev,
 
-                [activeMemberId]:
+                [memberWallet]:
                   formattedMessages,
               })
             );
@@ -620,20 +1544,121 @@ export default function AdminChat() {
         return;
       }
 
-      if (!activeMember) {
-        alert(
-          "Please select a member."
-        );
-
-        return;
-      }
-
       try {
         setSending(true);
 
+        // ======================================================
+        // GROUP CHAT
+        // ======================================================
+
+        if (activeNav === "group") {
+          const response =
+            await fetch(
+              `${API_URL}/group`,
+              {
+                method: "POST",
+
+                headers: {
+                  "Content-Type":
+                    "application/json",
+
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+
+                body: JSON.stringify({
+                  senderName:
+                    adminUser.name,
+
+                  senderAvatar:
+                    adminUser.avatar,
+
+                  message:
+                    text,
+                }),
+              }
+            );
+
+          if (
+            response.status === 401
+          ) {
+            throw new Error(
+              "Authentication failed. Please connect your wallet again."
+            );
+          }
+
+          if (!response.ok) {
+            const errorData =
+              await response
+                .json()
+                .catch(
+                  () => ({})
+                );
+
+            throw new Error(
+              errorData.message ||
+                "Failed to send group message."
+            );
+          }
+
+          const data =
+            await response.json();
+
+          console.log(
+            "Send group message response:",
+            data
+          );
+
+          // Backend saves the message and emits
+          // new-group-message through Socket.IO.
+          // The socket listener adds it to the UI,
+          // so we do not add it manually here.
+
+          if (data.success) {
+            setDraft("");
+          } else {
+            throw new Error(
+              data.message ||
+                "Failed to send group message."
+            );
+          }
+
+          return;
+        }
+
+        // ======================================================
+        // PRIVATE CHAT
+        // ======================================================
+
+        if (!activeMember) {
+          alert(
+            "Please select a member."
+          );
+
+          return;
+        }
+
+        const memberWallet =
+          normalizeWallet(
+            activeMember.walletAddress
+          );
+
+        if (!memberWallet) {
+          alert(
+            "Member wallet address is missing."
+          );
+
+          return;
+        }
+
+        console.log(
+          "Sending private message to:",
+          memberWallet
+        );
+
         const response =
           await fetch(
-            `${API_URL}/private/${activeMember.walletAddress}`,
+            `${API_URL}/private/${memberWallet}`,
             {
               method: "POST",
 
@@ -658,67 +1683,56 @@ export default function AdminChat() {
             }
           );
 
-        // ----------------------------------------------------
-        // AUTH ERROR
-        // ----------------------------------------------------
-
         if (
-          response.status ===
-          401
+          response.status === 401
         ) {
           throw new Error(
             "Authentication failed. Please connect your wallet again."
           );
         }
 
-        // ----------------------------------------------------
-        // OTHER ERROR
-        // ----------------------------------------------------
+        if (!response.ok) {
+          const errorData =
+            await response
+              .json()
+              .catch(
+                () => ({})
+              );
 
-        if (
-          !response.ok
-        ) {
           throw new Error(
-            "Failed to send private message"
+            errorData.message ||
+              "Failed to send private message."
           );
         }
 
         const data =
           await response.json();
 
-        // ----------------------------------------------------
-        // SUCCESS
-        // ----------------------------------------------------
+        console.log(
+          "Send private message response:",
+          data
+        );
 
-        if (
-          data.success
-        ) {
-          // IMPORTANT:
-          //
-          // Do NOT add the message manually.
-          //
-          // Backend saves the message.
-          // Socket.IO sends the saved message
-          // back to Admin + Member.
-          //
-          // This prevents duplicate messages.
-
+        if (data.success) {
+          // Backend saves the message and emits
+          // new-private-message. Socket listener
+          // adds it to the UI.
           setDraft("");
         } else {
-          console.error(
-            "Send private message failed:",
-            data.message
+          throw new Error(
+            data.message ||
+              "Failed to send private message."
           );
         }
       } catch (error) {
         console.error(
-          "Send Private Message Error:",
+          "Send Message Error:",
           error
         );
 
         alert(
           error.message ||
-            "Failed to send private message."
+            "Failed to send message."
         );
       } finally {
         setSending(false);
@@ -726,15 +1740,47 @@ export default function AdminChat() {
     };
 
   // ==========================================================
+  // SELECT MEMBER
+  // ==========================================================
+
+  const handleSelectMember =
+    (member) => {
+      setActiveMemberId(
+        member.id
+      );
+
+      const wallet =
+        normalizeWallet(
+          member.walletAddress
+        );
+
+      if (wallet) {
+        localStorage.setItem(
+          ADMIN_ACTIVE_MEMBER_KEY,
+          wallet
+        );
+
+        console.log(
+          "Selected member saved:",
+          wallet
+        );
+      }
+
+      setListOpen(false);
+
+      setDraft("");
+    };
+
+  // ==========================================================
   // UI
   // ==========================================================
 
   return (
-    <div className="admin-chat-app">
+    <div className={`admin-chat-app ${activeNav === "private" ? "private-layout" : "single-content-layout"}`}>
 
-      {/* ================================================== */}
-      {/* MOBILE BACKDROP */}
-      {/* ================================================== */}
+      {/* ==================================================
+          MOBILE BACKDROP
+      ================================================== */}
 
       {(navOpen ||
         listOpen) && (
@@ -747,9 +1793,9 @@ export default function AdminChat() {
         />
       )}
 
-      {/* ================================================== */}
-      {/* COLUMN 1 - ADMIN PANEL */}
-      {/* ================================================== */}
+      {/* ==================================================
+          COLUMN 1 - ADMIN PANEL
+      ================================================== */}
 
       <aside
         className={`admin-nav-panel ${
@@ -762,7 +1808,6 @@ export default function AdminChat() {
         {/* BRAND */}
 
         <div className="admin-brand">
-
           <span className="brand-badge">
             A
           </span>
@@ -770,19 +1815,15 @@ export default function AdminChat() {
           <span className="brand-name">
             Admin Panel
           </span>
-
         </div>
 
         {/* NAVIGATION */}
 
         <nav className="admin-nav">
-
           {NAV_ITEMS.map(
             (item) => (
               <button
-                key={
-                  item.key
-                }
+                key={item.key}
                 type="button"
                 className={`admin-nav-item ${
                   activeNav ===
@@ -798,38 +1839,36 @@ export default function AdminChat() {
                   setNavOpen(
                     false
                   );
+
+                  setListOpen(false);
                 }}
               >
-
                 <span className="nav-icon">
-
                   <i
                     className={`bi ${item.icon}`}
                   />
-
                 </span>
 
                 <span>
                   {item.label}
                 </span>
-
               </button>
             )
           )}
-
         </nav>
 
         <div
           className="circuit-decor"
           aria-hidden="true"
         />
-
       </aside>
 
-      {/* ================================================== */}
-      {/* COLUMN 2 - MEMBER LIST */}
-      {/* ================================================== */}
+      {/* ==================================================
+          COLUMN 2 - MEMBER LIST
+          Visible ONLY for Private Messages
+      ================================================== */}
 
+      {activeNav === "private" && (
       <section
         className={`member-panel ${
           listOpen
@@ -856,13 +1895,11 @@ export default function AdminChat() {
           <h2 className="member-panel-title">
             Admin Messages
           </h2>
-
         </div>
 
         {/* SEARCH */}
 
         <div className="member-search">
-
           <i className="bi bi-search" />
 
           <input
@@ -875,135 +1912,217 @@ export default function AdminChat() {
               )
             }
           />
-
         </div>
 
         {/* MEMBER LIST */}
 
         <ul className="member-list">
 
-          {filteredMembers.map(
-            (member) => (
-              <li
-                key={
-                  member.id
-                }
-              >
+          {/* LOADING */}
 
-                <button
-                  type="button"
-                  className={`member-row ${
-                    member.id ===
-                    activeMemberId
-                      ? "active"
-                      : ""
-                  }`}
-                  onClick={() => {
-                    setActiveMemberId(
-                      member.id
-                    );
+          {loadingMembers && (
+            <li className="member-list-state">
+              <div className="text-center py-4">
 
-                    setListOpen(
-                      false
-                    );
-                  }}
-                >
+                <div
+                  className="spinner-border spinner-border-sm"
+                  role="status"
+                />
 
-                  {/* AVATAR */}
+                <span className="ms-2">
+                  Loading members...
+                </span>
 
-                  <span
-                    className={`avatar-circle avatar-${member.id}`}
-                  >
-
-                    {member.avatar ? (
-                      <img
-                        src={
-                          member.avatar
-                        }
-                        alt={
-                          member.name
-                        }
-                      />
-                    ) : (
-                      member.name.charAt(
-                        0
-                      )
-                    )}
-
-                  </span>
-
-                  {/* MEMBER DETAILS */}
-
-                  <span className="member-row-text">
-
-                    <span className="member-row-name">
-                      {member.name}
-                    </span>
-
-                    <span className="member-row-status">
-
-                      <span
-                        className={`status-dot ${
-                          member.status ===
-                          "online"
-                            ? "status-online"
-                            : "status-offline"
-                        }`}
-                      />
-
-                      {member.status ===
-                      "online"
-                        ? "Online"
-                        : "Offline"}
-
-                    </span>
-
-                  </span>
-
-                </button>
-
-              </li>
-            )
+              </div>
+            </li>
           )}
 
+          {/* ERROR */}
+
+          {!loadingMembers &&
+            memberError && (
+              <li className="member-list-state">
+
+                <div className="text-center py-4">
+
+                  <i className="bi bi-exclamation-triangle" />
+
+                  <p className="mt-2 mb-0">
+                    {memberError}
+                  </p>
+
+                </div>
+
+              </li>
+            )}
+
+          {/* EMPTY */}
+
+          {!loadingMembers &&
+            !memberError &&
+            filteredMembers.length ===
+              0 && (
+              <li className="member-list-state">
+
+                <div className="text-center py-4">
+
+                  <i className="bi bi-person-x" />
+
+                  <p className="mt-2 mb-0">
+                    No members found.
+                  </p>
+
+                </div>
+
+              </li>
+            )}
+
+          {/* MEMBERS */}
+
+          {!loadingMembers &&
+            !memberError &&
+            filteredMembers.map(
+              (member) => (
+                <li
+                  key={member.id}
+                >
+
+                  <button
+                    type="button"
+                    className={`member-row ${
+                      member.id ===
+                      activeMemberId
+                        ? "active"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      handleSelectMember(
+                        member
+                      )
+                    }
+                  >
+
+                    {/* AVATAR */}
+
+                    <span
+                      className={`avatar-circle avatar-${member.id}`}
+                    >
+                      {member.avatar ? (
+                        <img
+                          src={
+                            member.avatar
+                          }
+                          alt={
+                            member.name
+                          }
+                        />
+                      ) : (
+                        member.name
+                          .charAt(0)
+                          .toUpperCase()
+                      )}
+                    </span>
+
+                    {/* MEMBER DETAILS */}
+
+                    <span className="member-row-text">
+
+                      <span className="member-row-name">
+                        {member.name}
+                      </span>
+
+                      <span className="member-row-status">
+
+                        <span
+                          className={`status-dot ${
+                            member.status ===
+                            "online"
+                              ? "status-online"
+                              : "status-offline"
+                          }`}
+                        />
+
+                        {member.status ===
+                        "online"
+                          ? "Online"
+                          : "Offline"}
+
+                      </span>
+
+                    </span>
+
+                  </button>
+
+                </li>
+              )
+            )}
+
         </ul>
-
       </section>
+      )}
 
-      {/* ================================================== */}
-      {/* COLUMN 3 - PRIVATE CHAT */}
-      {/* ================================================== */}
+      {/* ==================================================
+          COLUMN 3 - PRIVATE CHAT / MAIN CONTENT
+      ================================================== */}
 
-      <main className="chat-main">
+      <main className={`chat-main ${activeNav === "members" ? "members-mode" : ""}`}>
 
-        {/* ================================================= */}
-        {/* CHAT HEADER */}
-        {/* ================================================= */}
+        {/* =================================================
+            CHAT HEADER
+        ================================================= */}
 
         <header className="chat-header">
 
-          {/* MOBILE MEMBER LIST */}
+          {/* MOBILE ADMIN NAVIGATION */}
 
           <button
             type="button"
-            className="panel-toggle-btn d-lg-none"
-            onClick={() =>
-              setListOpen(true)
-            }
-            aria-label="Open member list"
+            className="mobile-admin-menu-btn d-lg-none"
+            onClick={() => setNavOpen(true)}
+            aria-label="Open admin navigation"
           >
-            <i className="bi bi-people" />
+            <i className="bi bi-list" />
           </button>
 
-          {/* ACTIVE MEMBER */}
+          {/* MOBILE MEMBER LIST - PRIVATE CHAT ONLY */}
 
-          {activeMember && (
+          {activeNav === "private" && (
+            <button
+              type="button"
+              className="mobile-member-menu-btn d-lg-none"
+              onClick={() => setListOpen(true)}
+              aria-label="Open member list"
+            >
+              <i className="bi bi-people" />
+            </button>
+          )}
+
+          {/* ACTIVE CHAT */}
+
+          {activeNav === "group" ? (
+            <div className="chat-header-title">
+
+              <span className="avatar-circle avatar-admin">
+                <i className="bi bi-globe2" />
+              </span>
+
+              <div>
+                <h1 className="chat-header-name">
+                  Community Group
+                </h1>
+
+                <span className="chat-header-status">
+                  Admin • All Members
+                </span>
+              </div>
+
+            </div>
+          ) : activeMember ? (
             <div className="chat-header-title">
 
               <span
                 className={`avatar-circle avatar-${activeMember.id}`}
               >
-
                 {activeMember.avatar ? (
                   <img
                     src={
@@ -1014,11 +2133,10 @@ export default function AdminChat() {
                     }
                   />
                 ) : (
-                  activeMember.name.charAt(
-                    0
-                  )
+                  activeMember.name
+                    .charAt(0)
+                    .toUpperCase()
                 )}
-
               </span>
 
               <div>
@@ -1046,6 +2164,21 @@ export default function AdminChat() {
                 </span>
 
               </div>
+            </div>
+          ) : (
+            <div className="chat-header-title">
+
+              <div>
+
+                <h1 className="chat-header-name">
+                  Private Messages
+                </h1>
+
+                <span className="chat-header-status">
+                  Select a member
+                </span>
+
+              </div>
 
             </div>
           )}
@@ -1062,153 +2195,273 @@ export default function AdminChat() {
 
         </header>
 
-        {/* ================================================= */}
-        {/* CHAT MESSAGES */}
-        {/* ================================================= */}
+        {/* =================================================
+            CHAT MESSAGES
+        ================================================= */}
 
         <div className="chat-messages-wrapper">
 
           {/* GLOW EFFECTS */}
 
           <div className="glow-orb glow-orb-1" />
-
           <div className="glow-orb glow-orb-2" />
-
           <div className="glow-orb glow-orb-3" />
 
           <div className="sparkle-layer" />
 
           {/* MESSAGE AREA */}
 
-          <div className="chat-messages">
+          <div className="chat-messages chat-messages-scroll">
 
-            {/* LOADING */}
+            {/* GROUP CHAT */}
 
-            {loading && (
-              <div className="text-center py-4">
+            {activeNav === "group" && (
+              <>
+                {groupLoading && (
+                  <div className="text-center py-4">
+                    <div
+                      className="spinner-border spinner-border-sm"
+                      role="status"
+                    />
 
-                <span className="text-light">
-                  Loading messages...
-                </span>
-
-              </div>
-            )}
-
-            {/* EMPTY */}
-
-            {!loading &&
-              activeMessages.length ===
-                0 && (
-                <div className="text-center py-4">
-
-                  <span className="text-light">
-                    No messages yet.
-                  </span>
-
-                </div>
-              )}
-
-            {/* MESSAGE LIST */}
-
-            {activeMessages.map(
-              (msg) => {
-
-                const isOwn =
-                  msg.isAdmin;
-
-                return (
-                  <div
-                    key={
-                      msg.id
-                    }
-                    className={`message-row ${
-                      isOwn
-                        ? "message-row-own"
-                        : ""
-                    } ${
-                      msg.isAdmin
-                        ? "message-row-admin"
-                        : ""
-                    }`}
-                  >
-
-                    {/* MESSAGE AVATAR */}
-
-                    <span
-                      className={`avatar-circle ${
-                        msg.isAdmin
-                          ? "avatar-admin"
-                          : `avatar-${activeMember?.id}`
-                      }`}
-                    >
-
-                      {msg.isAdmin ? (
-                        <i className="bi bi-star-fill" />
-                      ) : msg.senderAvatar ? (
-                        <img
-                          src={
-                            msg.senderAvatar
-                          }
-                          alt={
-                            msg.senderName
-                          }
-                        />
-                      ) : (
-                        msg.senderName?.charAt(
-                          0
-                        )
-                      )}
-
+                    <span className="text-light ms-2">
+                      Loading group messages...
                     </span>
+                  </div>
+                )}
 
-                    {/* MESSAGE */}
+                {!groupLoading &&
+                  groupMessages.length ===
+                    0 && (
+                    <div className="text-center py-5">
+                      <i className="bi bi-chat-dots fs-1 text-light opacity-50" />
 
-                    <div className="message-bubble">
-
-                      <div className="message-meta">
-
-                        <span className="message-sender">
-                          {msg.senderName}
-                        </span>
-
-                      </div>
-
-                      <p className="message-text">
-                        {msg.text}
+                      <p className="text-light mt-3">
+                        No group messages yet.
                       </p>
 
-                      <span className="message-time">
-                        {msg.time}
+                      <p className="text-light opacity-50 small">
+                        Send the first message to all Community X members.
+                      </p>
+                    </div>
+                  )}
+
+                {!groupLoading &&
+                  groupMessages.map(
+                    (msg) => (
+                      <div
+                        key={msg.id}
+                        className={`message-row ${
+                          msg.isAdmin
+                            ? "message-row-own"
+                            : ""
+                        } ${
+                          msg.isAdmin
+                            ? "message-row-admin"
+                            : ""
+                        }`}
+                      >
+                        <span
+                          className={`avatar-circle ${
+                            msg.isAdmin
+                              ? "avatar-admin"
+                              : "avatar-member"
+                          }`}
+                        >
+                          {msg.isAdmin ? (
+                            <i className="bi bi-star-fill" />
+                          ) : msg.senderAvatar ? (
+                            <img
+                              src={
+                                msg.senderAvatar
+                              }
+                              alt={
+                                msg.senderName
+                              }
+                            />
+                          ) : (
+                            msg.senderName
+                              ?.charAt(0)
+                              .toUpperCase()
+                          )}
+                        </span>
+
+                        <div className="message-bubble">
+                          <div className="message-meta">
+                            <span className="message-sender">
+                              {msg.senderName}
+                            </span>
+                          </div>
+
+                          <p className="message-text">
+                            {msg.text}
+                          </p>
+
+                          <span className="message-time">
+                            {msg.time}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  )}
+              </>
+            )}
+
+            {/* PRIVATE CHAT */}
+
+            {activeNav === "private" && (
+              <>
+                {!activeMember && (
+                  <div className="text-center py-5">
+                    <i className="bi bi-chat-square-text fs-1 text-light opacity-50" />
+
+                    <p className="text-light mt-3">
+                      Select a member to start
+                      a private conversation.
+                    </p>
+                  </div>
+                )}
+
+                {activeMember &&
+                  loading && (
+                    <div className="text-center py-4">
+                      <div
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                      />
+
+                      <span className="text-light ms-2">
+                        Loading messages...
+                      </span>
+                    </div>
+                  )}
+
+                {activeMember &&
+                  !loading &&
+                  activeMessages.length ===
+                    0 && (
+                    <div className="text-center py-4">
+                      <span className="text-light opacity-75">
+                        No messages yet.
                       </span>
 
+                      <p className="text-light opacity-50 small mt-2">
+                        Send a message to{" "}
+                        {activeMember.name}.
+                      </p>
                     </div>
+                  )}
 
-                  </div>
-                );
-              }
+                {activeMember &&
+                  activeMessages.map(
+                    (msg) => {
+                      const isOwn =
+                        msg.isAdmin;
+
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`message-row ${
+                            isOwn
+                              ? "message-row-own"
+                              : ""
+                          } ${
+                            msg.isAdmin
+                              ? "message-row-admin"
+                              : ""
+                          }`}
+                        >
+                          <span
+                            className={`avatar-circle ${
+                              msg.isAdmin
+                                ? "avatar-admin"
+                                : `avatar-${activeMember.id}`
+                            }`}
+                          >
+                            {msg.isAdmin ? (
+                              <i className="bi bi-star-fill" />
+                            ) : msg.senderAvatar ? (
+                              <img
+                                src={
+                                  msg.senderAvatar
+                                }
+                                alt={
+                                  msg.senderName
+                                }
+                              />
+                            ) : (
+                              msg.senderName
+                                ?.charAt(0)
+                                .toUpperCase()
+                            )}
+                          </span>
+
+                          <div className="message-bubble">
+                            <div className="message-meta">
+                              <span className="message-sender">
+                                {
+                                  msg.senderName
+                                }
+                              </span>
+                            </div>
+
+                            <p className="message-text">
+                              {msg.text}
+                            </p>
+
+                            <span className="message-time">
+                              {msg.time}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+              </>
+            )}
+
+            {/* MEMBER MANAGEMENT */}
+
+            {activeNav === "members" && (
+              <MembersDashboard
+                memberList={memberList}
+                filteredMembers={filteredMembers}
+                search={search}
+                setSearch={setSearch}
+                loadingMembers={loadingMembers}
+                memberError={memberError}
+                adminWallet={adminWallet}
+                handleSelectMember={handleSelectMember}
+                setActiveNav={setActiveNav}
+              />
+            )}
+
+            {activeNav === "auth" && (
+              <div className="text-center py-5">
+                <i className="bi bi-person-check fs-1 text-light opacity-50" />
+
+                <p className="text-light mt-3">
+                  Admin authentication is active.
+                </p>
+              </div>
             )}
 
             {/* SCROLL TARGET */}
 
             <div
-              ref={
-                bottomRef
-              }
+              ref={bottomRef}
             />
 
           </div>
-
         </div>
 
-        {/* ================================================= */}
-        {/* MESSAGE INPUT */}
-        {/* ================================================= */}
+        {/* =================================================
+            MESSAGE INPUT
+        ================================================= */}
 
         <form
           className="message-input-bar"
-          onSubmit={
-            handleSend
-          }
+          onSubmit={handleSend}
         >
 
           {/* ATTACHMENT */}
@@ -1226,7 +2479,13 @@ export default function AdminChat() {
           <input
             type="text"
             className="message-input"
-            placeholder="Type a message..."
+            placeholder={
+              activeNav === "group"
+                ? "Message all Community X members..."
+                : activeMember
+                  ? `Message ${activeMember.name}...`
+                  : "Select a member..."
+            }
             value={draft}
             onChange={(e) =>
               setDraft(
@@ -1234,7 +2493,11 @@ export default function AdminChat() {
               )
             }
             disabled={
-              sending
+              sending ||
+              (
+                activeNav !== "group" &&
+                !activeMember
+              )
             }
           />
 
@@ -1244,6 +2507,10 @@ export default function AdminChat() {
             type="button"
             className="icon-btn"
             aria-label="Add emoji"
+            disabled={
+              activeNav !== "group" &&
+              !activeMember
+            }
           >
             <i className="bi bi-emoji-smile" />
           </button>
@@ -1255,11 +2522,23 @@ export default function AdminChat() {
             className="send-btn"
             aria-label="Send message"
             disabled={
-              sending
+              sending ||
+              (
+                activeNav !== "group" &&
+                !activeMember
+              ) ||
+              !draft.trim()
             }
           >
 
-            <i className="bi bi-send-fill" />
+            {sending ? (
+              <span
+                className="spinner-border spinner-border-sm"
+                role="status"
+              />
+            ) : (
+              <i className="bi bi-send-fill" />
+            )}
 
           </button>
 

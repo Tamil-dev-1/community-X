@@ -124,3 +124,33 @@ export const checkCommunityProfile = async (req, res) => {
     });
   }
 };
+
+
+// Get all Community X members
+export const getCommunityMembers = async (req, res) => {
+  try {
+    const members = await CommunityUser.find({})
+      .select(
+        "_id walletAddress fullName username profileImage"
+      )
+      .sort({
+        fullName: 1,
+      });
+
+    return res.status(200).json({
+      success: true,
+      count: members.length,
+      members,
+    });
+  } catch (error) {
+    console.error(
+      "Get Community Members Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching Community X members",
+    });
+  }
+};

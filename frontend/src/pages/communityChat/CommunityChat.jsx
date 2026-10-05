@@ -1,3 +1,4 @@
+
 import React, {
   useEffect,
   useRef,
@@ -17,22 +18,49 @@ import "./CommunityChat.css";
 const API_URL = "http://localhost:5000/api/messages";
 const SOCKET_URL = "http://localhost:5000";
 
+/*
+  Current Community X Admin wallet.
+
+  We are using this temporarily for the member → admin
+  private chat.
+
+  Later we can fetch the admin wallet dynamically
+  from the backend.
+*/
+const ADMIN_WALLET =
+  "0x2db4d6fa605a41b6953a28c7a2e6a312da336ec1";
+
 const DEFAULT_AVATAR =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80";
 
 const CommunityChat = () => {
   const location = useLocation();
 
+  /*
+    Community user information can come from:
+    1. location.state
+    2. localStorage wallet
+  */
   const communityUser =
     location.state?.communityUser;
 
   const walletAddressFromState =
     location.state?.walletAddress;
 
+  const storedWallet =
+    localStorage.getItem("communityXWallet");
+
+  const token =
+    localStorage.getItem("communityXToken");
+
+  /*
+    Current logged-in member
+  */
   const currentUser = {
     walletAddress:
       communityUser?.walletAddress ||
       walletAddressFromState ||
+      storedWallet ||
       "",
 
     name:
@@ -50,12 +78,9 @@ const CommunityChat = () => {
     isAdmin: false,
   };
 
-  const token =
-    localStorage.getItem("communityXToken");
-
-  /* ----------------------------- */
-  /* State */
-  /* ----------------------------- */
+  /* -----------------------------
+     State
+  ----------------------------- */
 
   const [activeTab, setActiveTab] =
     useState("group");
@@ -78,6 +103,9 @@ const CommunityChat = () => {
   const [loading, setLoading] =
     useState(true);
 
+  const [adminLoading, setAdminLoading] =
+    useState(false);
+
   const [sending, setSending] =
     useState(false);
 
@@ -94,11 +122,56 @@ const CommunityChat = () => {
     useState(null);
 
   const socketRef = useRef(null);
+
   const messagesEndRef = useRef(null);
 
-  /* ----------------------------- */
-  /* Socket.IO */
-  /* ----------------------------- */
+  /* -----------------------------
+     Format message helper
+  ----------------------------- */
+
+  const formatMessage = (message) => {
+    return {
+      id:
+        message?._id ||
+        message?.id,
+
+      senderId:
+        message?.senderWallet,
+
+      senderWallet:
+        message?.senderWallet,
+
+      receiverWallet:
+        message?.receiverWallet || null,
+
+      senderName:
+        message?.senderName ||
+        "Community Member",
+
+      avatar:
+        message?.senderAvatar ||
+        DEFAULT_AVATAR,
+
+      isAdmin:
+        message?.senderWallet?.toLowerCase() ===
+        ADMIN_WALLET.toLowerCase(),
+
+      text:
+        message?.message || "",
+
+      time: new Date(
+        message?.createdAt ||
+          Date.now()
+      ).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+  };
+
+  /* -----------------------------
+     Socket.IO
+  ----------------------------- */
 
   useEffect(() => {
     if (!token) {
@@ -121,16 +194,23 @@ const CommunityChat = () => {
         socket.id
       );
 
-      socket.emit("authenticate-socket", {
-        token,
-      });
+      /*
+        Authenticate socket with the
+        currently logged-in MEMBER token.
+      */
+      socket.emit(
+        "authenticate-socket",
+        {
+          token,
+        }
+      );
     });
 
     socket.on(
       "socket-authenticated",
       (data) => {
         console.log(
-          "Socket authenticated:",
+          "Member socket authenticated:",
           data
         );
       }
@@ -140,55 +220,21 @@ const CommunityChat = () => {
       "socket-auth-error",
       (error) => {
         console.error(
-          "Socket authentication error:",
+          "Member socket authentication error:",
           error
         );
       }
     );
 
-    socket.on("disconnect", () => {
-      console.log(
-        "Community X socket disconnected"
-      );
-    });
+    /* -----------------------------
+       GROUP MESSAGE
+    ----------------------------- */
 
-    /* New group message */
     socket.on(
       "new-group-message",
       (newMessage) => {
-        const formattedMessage = {
-          id:
-            newMessage._id ||
-            newMessage.id,
-
-          senderId:
-            newMessage.senderWallet,
-
-          senderWallet:
-            newMessage.senderWallet,
-
-          senderName:
-            newMessage.senderName ||
-            "Community Member",
-
-          avatar:
-            newMessage.senderAvatar ||
-            DEFAULT_AVATAR,
-
-          isAdmin:
-            newMessage.isAdmin || false,
-
-          text:
-            newMessage.message || "",
-
-          time: new Date(
-            newMessage.createdAt ||
-              Date.now()
-          ).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        };
+        const formattedMessage =
+          formatMessage(newMessage);
 
         setMessages((prev) => {
           const exists = prev.some(
@@ -209,7 +255,10 @@ const CommunityChat = () => {
       }
     );
 
-    /* Updated message */
+    /* -----------------------------
+       GROUP MESSAGE UPDATED
+    ----------------------------- */
+
     socket.on(
       "message-updated",
       (updatedMessage) => {
@@ -217,8 +266,10 @@ const CommunityChat = () => {
           prev.map((message) => {
             if (
               message.id ===
-              (updatedMessage._id ||
-                updatedMessage.id)
+              (
+                updatedMessage?._id ||
+                updatedMessage?.id
+              )
             ) {
               return {
                 ...message,
@@ -233,14 +284,17 @@ const CommunityChat = () => {
       }
     );
 
-    /* Deleted message */
+    /* -----------------------------
+       GROUP MESSAGE DELETED
+    ----------------------------- */
+
     socket.on(
       "message-deleted",
       (deletedMessage) => {
         const deletedId =
-          deletedMessage._id ||
-          deletedMessage.id ||
-          deletedMessage.messageId;
+          deletedMessage?._id ||
+          deletedMessage?.id ||
+          deletedMessage?.messageId;
 
         setMessages((prev) =>
           prev.filter(
@@ -251,15 +305,93 @@ const CommunityChat = () => {
       }
     );
 
+    /* -----------------------------
+       PRIVATE MESSAGE
+    ----------------------------- */
+
+    socket.on(
+      "new-private-message",
+      (newMessage) => {
+        console.log(
+          "New private message received:",
+          newMessage
+        );
+
+        const senderWallet =
+          newMessage?.senderWallet?.toLowerCase();
+
+        const receiverWallet =
+          newMessage?.receiverWallet?.toLowerCase();
+
+        const currentWallet =
+          currentUser.walletAddress?.toLowerCase();
+
+        const adminWallet =
+          ADMIN_WALLET.toLowerCase();
+
+        /*
+          Only accept messages belonging
+          to this member ↔ admin conversation.
+        */
+        const belongsToAdminChat =
+          (
+            senderWallet ===
+              currentWallet &&
+            receiverWallet ===
+              adminWallet
+          ) ||
+          (
+            senderWallet ===
+              adminWallet &&
+            receiverWallet ===
+              currentWallet
+          );
+
+        if (!belongsToAdminChat) {
+          return;
+        }
+
+        const formattedMessage =
+          formatMessage(newMessage);
+
+        setAdminMessages((prev) => {
+          const exists = prev.some(
+            (message) =>
+              message.id ===
+              formattedMessage.id
+          );
+
+          if (exists) {
+            return prev;
+          }
+
+          return [
+            ...prev,
+            formattedMessage,
+          ];
+        });
+      }
+    );
+
+    socket.on("disconnect", () => {
+      console.log(
+        "Community X socket disconnected"
+      );
+    });
+
     return () => {
       socket.disconnect();
+
       socketRef.current = null;
     };
-  }, [token]);
+  }, [
+    token,
+    currentUser.walletAddress,
+  ]);
 
-  /* ----------------------------- */
-  /* Auto Scroll */
-  /* ----------------------------- */
+  /* -----------------------------
+     Auto Scroll
+  ----------------------------- */
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -271,9 +403,9 @@ const CommunityChat = () => {
     activeTab,
   ]);
 
-  /* ----------------------------- */
-  /* Fetch Group Messages */
-  /* ----------------------------- */
+  /* -----------------------------
+     Fetch Group Messages
+  ----------------------------- */
 
   useEffect(() => {
     const fetchGroupMessages = async () => {
@@ -286,6 +418,7 @@ const CommunityChat = () => {
           );
 
           setMessages([]);
+
           return;
         }
 
@@ -295,7 +428,8 @@ const CommunityChat = () => {
             method: "GET",
 
             headers: {
-              Authorization: `Bearer ${token}`,
+              Authorization:
+                `Bearer ${token}`,
             },
           }
         );
@@ -306,6 +440,7 @@ const CommunityChat = () => {
           );
 
           setMessages([]);
+
           return;
         }
 
@@ -326,42 +461,7 @@ const CommunityChat = () => {
 
         const formattedMessages =
           serverMessages.map(
-            (message) => ({
-              id:
-                message._id ||
-                message.id,
-
-              senderId:
-                message.senderWallet,
-
-              senderWallet:
-                message.senderWallet,
-
-              senderName:
-                message.senderName ||
-                "Community Member",
-
-              avatar:
-                message.senderAvatar ||
-                DEFAULT_AVATAR,
-
-              isAdmin:
-                message.isAdmin || false,
-
-              text:
-                message.message || "",
-
-              time: new Date(
-                message.createdAt ||
-                  Date.now()
-              ).toLocaleTimeString(
-                [],
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }
-              ),
-            })
+            formatMessage
           );
 
         setMessages(
@@ -382,11 +482,162 @@ const CommunityChat = () => {
     fetchGroupMessages();
   }, [token]);
 
-  /* ----------------------------- */
-  /* Send Message */
-  /* ----------------------------- */
+  /* -----------------------------
+     Fetch Private Admin Messages
+  ----------------------------- */
 
-  const handleSendMessage = async (event) => {
+  useEffect(() => {
+    const fetchAdminMessages =
+      async () => {
+        /*
+          IMPORTANT:
+          Private history must be loaded when the
+          member page opens/refreshed.
+
+          We do NOT wait for activeTab === "admin"
+          because activeTab resets to "group" after
+          a page refresh.
+        */
+
+        if (!token) {
+          console.warn(
+            "No Community X token found."
+          );
+
+          setAdminMessages([]);
+
+          return;
+        }
+
+        if (!currentUser.walletAddress) {
+          console.warn(
+            "Member wallet address is missing."
+          );
+
+          setAdminMessages([]);
+
+          return;
+        }
+
+        try {
+          setAdminLoading(true);
+
+          console.log(
+            "Loading private messages with admin:",
+            ADMIN_WALLET
+          );
+
+          console.log(
+            "Member wallet:",
+            currentUser.walletAddress
+          );
+
+          const response =
+            await fetch(
+              `${API_URL}/private/${ADMIN_WALLET}`,
+              {
+                method: "GET",
+
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              }
+            );
+
+          if (
+            response.status === 401
+          ) {
+            console.error(
+              "Private chat authentication failed."
+            );
+
+            setAdminMessages([]);
+
+            return;
+          }
+
+          const data =
+            await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              data.message ||
+                "Failed to fetch private messages"
+            );
+          }
+
+          const serverMessages =
+            Array.isArray(data)
+              ? data
+              : data.messages || [];
+
+          console.log(
+            "Private messages loaded from MongoDB:",
+            serverMessages.length
+          );
+
+          const member =
+            currentUser.walletAddress.toLowerCase();
+
+          const admin =
+            ADMIN_WALLET.toLowerCase();
+
+          const formattedMessages =
+            serverMessages
+              .filter((message) => {
+                const sender =
+                  message?.senderWallet?.toLowerCase();
+
+                const receiver =
+                  message?.receiverWallet?.toLowerCase();
+
+                return (
+                  (
+                    sender === member &&
+                    receiver === admin
+                  ) ||
+                  (
+                    sender === admin &&
+                    receiver === member
+                  )
+                );
+              })
+              .map(formatMessage);
+
+          console.log(
+            "Member private chat messages:",
+            formattedMessages.length
+          );
+
+          setAdminMessages(
+            formattedMessages
+          );
+        } catch (error) {
+          console.error(
+            "Fetch private messages error:",
+            error
+          );
+
+          setAdminMessages([]);
+        } finally {
+          setAdminLoading(false);
+        }
+      };
+
+    fetchAdminMessages();
+  }, [
+    token,
+    currentUser.walletAddress,
+  ]);
+
+  /* -----------------------------
+     Send Message
+  ----------------------------- */
+
+  const handleSendMessage = async (
+    event
+  ) => {
     event?.preventDefault();
 
     const trimmedText =
@@ -415,77 +666,101 @@ const CommunityChat = () => {
     try {
       setSending(true);
 
-      /* ----------------------------- */
-      /* Admin tab - local message */
-      /* ----------------------------- */
+      /* -----------------------------
+         ADMIN PRIVATE CHAT
+      ----------------------------- */
 
-      if (activeTab !== "group") {
-        const newAdminMessage = {
-          id: `local_${Date.now()}`,
-
-          senderId:
-            currentUser.walletAddress,
-
-          senderWallet:
-            currentUser.walletAddress,
-
-          senderName:
-            currentUser.name,
-
-          avatar:
-            currentUser.avatar,
-
-          isAdmin: false,
-
-          text: trimmedText,
-
-          time: new Date().toLocaleTimeString(
-            [],
+      if (activeTab === "admin") {
+        const response =
+          await fetch(
+            `${API_URL}/private/${ADMIN_WALLET}`,
             {
-              hour: "2-digit",
-              minute: "2-digit",
-            }
-          ),
-        };
+              method: "POST",
 
-        setAdminMessages((prev) => [
-          ...prev,
-          newAdminMessage,
-        ]);
+              headers: {
+                "Content-Type":
+                  "application/json",
+
+                Authorization:
+                  `Bearer ${token}`,
+              },
+
+              body: JSON.stringify({
+                senderName:
+                  currentUser.name,
+
+                senderAvatar:
+                  currentUser.avatar,
+
+                message:
+                  trimmedText,
+              }),
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message ||
+              "Failed to send private message"
+          );
+        }
+
+        console.log(
+          "Private message sent:",
+          data
+        );
+
+        /*
+          IMPORTANT:
+          Don't manually add the message.
+
+          Backend emits:
+          new-private-message
+
+          Socket listener above will add it
+          to adminMessages.
+        */
 
         setInputText("");
+
         setShowEmojiPicker(false);
 
         return;
       }
 
-      /* ----------------------------- */
-      /* Group message */
-      /* ----------------------------- */
+      /* -----------------------------
+         GROUP CHAT
+      ----------------------------- */
 
-      const response = await fetch(
-        `${API_URL}/group`,
-        {
-          method: "POST",
+      const response =
+        await fetch(
+          `${API_URL}/group`,
+          {
+            method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
+            headers: {
+              "Content-Type":
+                "application/json",
 
-            Authorization: `Bearer ${token}`,
-          },
+              Authorization:
+                `Bearer ${token}`,
+            },
 
-          body: JSON.stringify({
-            senderName:
-              currentUser.name,
+            body: JSON.stringify({
+              senderName:
+                currentUser.name,
 
-            senderAvatar:
-              currentUser.avatar,
+              senderAvatar:
+                currentUser.avatar,
 
-            message: trimmedText,
-          }),
-        }
-      );
+              message:
+                trimmedText,
+            }),
+          }
+        );
 
       const data =
         await response.json();
@@ -498,14 +773,8 @@ const CommunityChat = () => {
       }
 
       setInputText("");
-      setShowEmojiPicker(false);
 
-      /*
-       * Socket.IO will normally send the
-       * new message back to the clients.
-       * We don't manually add it here to
-       * prevent duplicate messages.
-       */
+      setShowEmojiPicker(false);
     } catch (error) {
       console.error(
         "Send message error:",
@@ -521,27 +790,34 @@ const CommunityChat = () => {
     }
   };
 
-  /* ----------------------------- */
-  /* Start Edit */
-  /* ----------------------------- */
+  /* -----------------------------
+     Start Edit
+  ----------------------------- */
 
-  const handleStartEdit = (message) => {
-    setEditingMessageId(message.id);
-    setEditingText(message.text);
+  const handleStartEdit = (
+    message
+  ) => {
+    setEditingMessageId(
+      message.id
+    );
+
+    setEditingText(
+      message.text
+    );
   };
 
-  /* ----------------------------- */
-  /* Cancel Edit */
-  /* ----------------------------- */
+  /* -----------------------------
+     Cancel Edit
+  ----------------------------- */
 
   const handleCancelEdit = () => {
     setEditingMessageId(null);
     setEditingText("");
   };
 
-  /* ----------------------------- */
-  /* Update Message */
-  /* ----------------------------- */
+  /* -----------------------------
+     Update Group Message
+  ----------------------------- */
 
   const handleUpdateMessage = async (
     messageId
@@ -564,23 +840,26 @@ const CommunityChat = () => {
     try {
       setUpdatingMessage(true);
 
-      const response = await fetch(
-        `${API_URL}/group/${messageId}`,
-        {
-          method: "PUT",
+      const response =
+        await fetch(
+          `${API_URL}/group/${messageId}`,
+          {
+            method: "PUT",
 
-          headers: {
-            "Content-Type":
-              "application/json",
+            headers: {
+              "Content-Type":
+                "application/json",
 
-            Authorization: `Bearer ${token}`,
-          },
+              Authorization:
+                `Bearer ${token}`,
+            },
 
-          body: JSON.stringify({
-            message: trimmedText,
-          }),
-        }
-      );
+            body: JSON.stringify({
+              message:
+                trimmedText,
+            }),
+          }
+        );
 
       const data =
         await response.json();
@@ -597,7 +876,8 @@ const CommunityChat = () => {
           message.id === messageId
             ? {
                 ...message,
-                text: trimmedText,
+                text:
+                  trimmedText,
               }
             : message
         )
@@ -619,16 +899,17 @@ const CommunityChat = () => {
     }
   };
 
-  /* ----------------------------- */
-  /* Delete Message */
-  /* ----------------------------- */
+  /* -----------------------------
+     Delete Group Message
+  ----------------------------- */
 
   const handleDeleteMessage = async (
     messageId
   ) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this message?"
-    );
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this message?"
+      );
 
     if (!confirmed) {
       return;
@@ -643,18 +924,22 @@ const CommunityChat = () => {
     }
 
     try {
-      setDeletingMessageId(messageId);
-
-      const response = await fetch(
-        `${API_URL}/group/${messageId}`,
-        {
-          method: "DELETE",
-
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      setDeletingMessageId(
+        messageId
       );
+
+      const response =
+        await fetch(
+          `${API_URL}/group/${messageId}`,
+          {
+            method: "DELETE",
+
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
 
       const data =
         await response.json();
@@ -687,41 +972,54 @@ const CommunityChat = () => {
     }
   };
 
-  /* ----------------------------- */
-  /* Emoji */
-  /* ----------------------------- */
+  /* -----------------------------
+     Emoji
+  ----------------------------- */
 
-  const addEmoji = (emoji) => {
+  const addEmoji = (
+    emoji
+  ) => {
     setInputText(
-      (prev) => `${prev}${emoji}`
+      (prev) =>
+        `${prev}${emoji}`
     );
 
     setShowEmojiPicker(false);
   };
 
-  /* ----------------------------- */
-  /* Current Messages */
-  /* ----------------------------- */
+  /* -----------------------------
+     Current Messages
+  ----------------------------- */
 
   const currentMessages =
     activeTab === "group"
       ? messages
       : adminMessages;
 
-  /* ----------------------------- */
-  /* JSX */
-  /* ----------------------------- */
+  const currentLoading =
+    activeTab === "group"
+      ? loading
+      : adminLoading;
+
+  /* -----------------------------
+     JSX
+  ----------------------------- */
 
   return (
     <div className="cxchat-chat-app">
+
       {/* Ambient Background */}
+
       <div className="cxchat-ambient-background">
         <div className="cxchat-ambient-light cxchat-ambient-light-one" />
+
         <div className="cxchat-ambient-light cxchat-ambient-light-two" />
+
         <div className="cxchat-ambient-light cxchat-ambient-light-three" />
       </div>
 
       {/* Mobile Backdrop */}
+
       {mobileMenuOpen && (
         <div
           className="cxchat-mobile-backdrop"
@@ -732,20 +1030,29 @@ const CommunityChat = () => {
       )}
 
       {/* Sidebar */}
+
       <ChatSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        mobileMenuOpen={mobileMenuOpen}
+        mobileMenuOpen={
+          mobileMenuOpen
+        }
         setMobileMenuOpen={
           setMobileMenuOpen
         }
-        currentUser={currentUser}
+        currentUser={
+          currentUser
+        }
       />
 
       {/* Main Chat */}
+
       <main className="cxchat-chat-main">
+
         <div className="cxchat-chat-card">
+
           {/* Header */}
+
           <ChatHeader
             activeTab={activeTab}
             setMobileMenuOpen={
@@ -754,57 +1061,97 @@ const CommunityChat = () => {
           />
 
           {/* Messages */}
+
           <ChatMessages
-            messages={currentMessages}
-            loading={loading}
-            activeTab={activeTab}
-            currentUser={currentUser}
+            messages={
+              currentMessages
+            }
+
+            loading={
+              currentLoading
+            }
+
+            activeTab={
+              activeTab
+            }
+
+            currentUser={
+              currentUser
+            }
+
             editingMessageId={
               editingMessageId
             }
-            editingText={editingText}
+
+            editingText={
+              editingText
+            }
+
             setEditingText={
               setEditingText
             }
+
             handleStartEdit={
               handleStartEdit
             }
+
             handleCancelEdit={
               handleCancelEdit
             }
+
             handleUpdateMessage={
               handleUpdateMessage
             }
+
             updatingMessage={
               updatingMessage
             }
+
             handleDeleteMessage={
               handleDeleteMessage
             }
+
             deletingMessageId={
               deletingMessageId
             }
+
             messagesEndRef={
               messagesEndRef
             }
           />
 
           {/* Input */}
+
           <ChatInput
-            inputText={inputText}
-            setInputText={setInputText}
+            inputText={
+              inputText
+            }
+
+            setInputText={
+              setInputText
+            }
+
             showEmojiPicker={
               showEmojiPicker
             }
+
             setShowEmojiPicker={
               setShowEmojiPicker
             }
-            addEmoji={addEmoji}
+
+            addEmoji={
+              addEmoji
+            }
+
             handleSendMessage={
               handleSendMessage
             }
-            sending={sending}
+
+            sending={
+              sending
+            }
           />
+
         </div>
       </main>
     </div>

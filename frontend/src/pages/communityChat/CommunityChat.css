@@ -537,7 +537,7 @@
 
   height: 100dvh;
 
-  padding: 14px;
+  /* padding: 14px; */
 
   display: flex;
 }
@@ -558,7 +558,7 @@
     1px solid
     rgba(255, 255, 255, 0.08);
 
-  border-radius: 18px;
+  border-radius: 0px;
 
   background:
     rgba(18, 4, 19, 0.72);

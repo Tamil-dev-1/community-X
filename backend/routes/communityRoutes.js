@@ -3,6 +3,7 @@ import express from "express";
 import {
   createCommunityProfile,
   checkCommunityProfile,
+  getCommunityMembers,
 } from "../controllers/communityController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -20,6 +21,12 @@ router.get(
   "/profile/check",
   authMiddleware,
   checkCommunityProfile
+);
+
+router.get(
+  "/members",
+  authMiddleware,
+  getCommunityMembers
 );
 
 export default router;
