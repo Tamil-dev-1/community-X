@@ -1,0 +1,328 @@
+/* ============================================================
+   COMMUNITY X - CHAT EDIT MODE
+============================================================ */
+
+.cxchat-editing-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  margin: 0 10px 8px;
+  border: 1px solid rgba(255, 0, 170, 0.25);
+  border-radius: 12px;
+  background: rgba(255, 0, 170, 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.cxchat-editing-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cxchat-editing-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #ff4fc3;
+  background: rgba(255, 79, 195, 0.12);
+}
+
+.cxchat-editing-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cxchat-editing-label {
+  color: #ff72ce;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.cxchat-editing-preview {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.cxchat-edit-cancel-button {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cxchat-edit-cancel-button:hover {
+  color: #ffffff;
+  background: rgba(255, 79, 195, 0.14);
+  border-color: rgba(255, 79, 195, 0.35);
+}
+
+.cxchat-update-button {
+  background: linear-gradient(
+    135deg,
+    #ff35b8,
+    #b900ff
+  );
+}
+
+/* ============================================================
+   DATE SEPARATOR
+============================================================ */
+
+.cxchat-date-separator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 16px 0 12px;
+}
+
+.cxchat-date-separator span {
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+
+/* ============================================================
+   THREE DOT MENU
+============================================================ */
+
+.cxchat-message-menu-wrapper {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 50;
+}
+
+.cxchat-message-menu-button {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.15);
+
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.cxchat-message-bubble:hover
+  .cxchat-message-menu-button {
+  opacity: 1;
+}
+
+.cxchat-message-menu-button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cxchat-message-menu {
+  position: absolute;
+  top: 30px;
+  right: 0;
+
+  width: 120px;
+  padding: 5px;
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+
+  background: rgba(20, 10, 25, 0.96);
+
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.cxchat-message-menu-item {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 8px 9px;
+
+  border: none;
+  border-radius: 6px;
+
+  color: rgba(255, 255, 255, 0.8);
+  background: transparent;
+
+  font-size: 12px;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.cxchat-message-menu-item:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.cxchat-message-menu-delete {
+  color: #ff709e;
+}
+
+.cxchat-message-menu-delete:hover {
+  color: #ff8aad;
+  background: rgba(255, 60, 120, 0.08);
+}
+
+
+/* ============================================================
+   EDITED LABEL
+============================================================ */
+
+.cxchat-edited-label {
+  margin-left: 4px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  font-style: italic;
+}
+
+
+/* ============================================================
+   EDITING MESSAGE
+============================================================ */
+
+.cxchat-message-bubble-editing {
+  box-shadow:
+    0 0 0 1px rgba(255, 60, 190, 0.3),
+    0 0 15px rgba(255, 60, 190, 0.08);
+}
+
+.cxchat-editing-message-hint {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+}
+
+
+/* ============================================================
+   DELETE LOADING
+============================================================ */
+
+.cxchat-menu-spinner {
+  width: 12px;
+  height: 12px;
+
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #ff62c7;
+
+  border-radius: 50%;
+
+  animation: cxchat-menu-spin 0.7s linear infinite;
+}
+
+@keyframes cxchat-menu-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* ============================================================
+   MOBILE
+============================================================ */
+
+@media (max-width: 576px) {
+  .cxchat-message-menu-button {
+    opacity: 1;
+  }
+
+  .cxchat-message-menu {
+    width: 115px;
+  }
+
+  .cxchat-date-separator {
+    margin: 12px 0 10px;
+  }
+}
+
+/* ============================================================
+COMMUNITY X - DOCUMENT ATTACHMENTS
+============================================================ */
+
+.cxchat-attachment-link {
+display: flex;
+align-items: center;
+gap: 10px;
+max-width: 100%;
+margin-top: 8px;
+padding: 10px 12px;
+border: 1px solid rgba(255, 79, 195, 0.22);
+border-radius: 10px;
+color: inherit;
+background: rgba(255, 255, 255, 0.035);
+text-decoration: none;
+overflow-wrap: anywhere;
+transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.cxchat-attachment-link:hover {
+color: inherit;
+background: rgba(255, 79, 195, 0.08);
+border-color: rgba(255, 79, 195, 0.4);
+}
+
+.cxchat-attachment-link > i {
+flex-shrink: 0;
+font-size: 18px;
+color: #ff72ce;
+}
+
+.cxchat-attachment-link span {
+flex: 1;
+min-width: 0;
+overflow-wrap: anywhere;
+word-break: break-word;
+font-size: 12px;
+}
+
+.cxchat-attachment-link .bi-box-arrow-up-right {
+font-size: 12px;
+color: rgba(255, 255, 255, 0.45);
+}
+
+@media (max-width: 576px) {
+.cxchat-attachment-link {
+gap: 8px;
+padding: 9px 10px;
+}
+
+.cxchat-attachment-link span {
+font-size: 11px;
+}
+}

@@ -1,4 +1,7 @@
+
 import React from "react";
+import './ChatSidebar.css'
+
 import {
   Users,
   Megaphone,
@@ -13,11 +16,29 @@ const ChatSidebar = ({
   mobileMenuOpen,
   setMobileMenuOpen,
   currentUser,
+  groupUnreadCount = 0,
+  adminUnreadCount = 0,
+  onClearUnread,
 }) => {
+  // Handle channel switching and unread notification clearing.
   const handleTabChange = (tab) => {
     setActiveTab(tab);
+
+    if (typeof onClearUnread === "function") {
+      onClearUnread(tab);
+    }
+
     setMobileMenuOpen(false);
   };
+
+  // Keep badge values safe and readable.
+  const getUnreadCount = (count) => {
+    const value = Number(count) || 0;
+    return Math.max(0, value);
+  };
+
+  const groupUnread = getUnreadCount(groupUnreadCount);
+  const adminUnread = getUnreadCount(adminUnreadCount);
 
   return (
     <aside
@@ -71,6 +92,7 @@ const ChatSidebar = ({
                 : "cxchat-nav-item-inactive"
             }`}
             onClick={() => handleTabChange("group")}
+            aria-current={activeTab === "group" ? "page" : undefined}
           >
             <span className="cxchat-nav-item-left">
               <span className="cxchat-nav-icon">
@@ -82,9 +104,20 @@ const ChatSidebar = ({
               </span>
             </span>
 
-            {activeTab === "group" && (
-              <span className="cxchat-nav-active-dot" />
-            )}
+            <span className="cxchat-nav-item-right">
+              {groupUnread > 0 && (
+                <span
+                  className="cxchat-unread-badge"
+                  aria-label={`${groupUnread} unread group messages`}
+                >
+                  {groupUnread > 99 ? "99+" : groupUnread}
+                </span>
+              )}
+
+              {activeTab === "group" && (
+                <span className="cxchat-nav-active-dot" />
+              )}
+            </span>
           </button>
 
           {/* Admin Messages */}
@@ -96,6 +129,7 @@ const ChatSidebar = ({
                 : "cxchat-nav-item-inactive"
             }`}
             onClick={() => handleTabChange("admin")}
+            aria-current={activeTab === "admin" ? "page" : undefined}
           >
             <span className="cxchat-nav-item-left">
               <span className="cxchat-nav-icon">
@@ -107,9 +141,20 @@ const ChatSidebar = ({
               </span>
             </span>
 
-            {activeTab === "admin" && (
-              <span className="cxchat-nav-active-dot" />
-            )}
+            <span className="cxchat-nav-item-right">
+              {adminUnread > 0 && (
+                <span
+                  className="cxchat-unread-badge"
+                  aria-label={`${adminUnread} unread admin messages`}
+                >
+                  {adminUnread > 99 ? "99+" : adminUnread}
+                </span>
+              )}
+
+              {activeTab === "admin" && (
+                <span className="cxchat-nav-active-dot" />
+              )}
+            </span>
           </button>
         </nav>
       </div>
@@ -119,10 +164,11 @@ const ChatSidebar = ({
         <div className="cxchat-sidebar-user-card">
           <div className="cxchat-sidebar-user-avatar-wrapper">
             <img
-              src={currentUser.avatar}
-              alt={currentUser.name}
+              src={currentUser?.avatar}
+              alt={currentUser?.name || "Community Member"}
               className="cxchat-sidebar-user-avatar"
               onError={(e) => {
+                e.currentTarget.onerror = null;
                 e.currentTarget.src =
                   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80";
               }}
@@ -133,7 +179,7 @@ const ChatSidebar = ({
 
           <div className="cxchat-sidebar-user-info">
             <div className="cxchat-sidebar-user-name">
-              {currentUser.name}
+              {currentUser?.name || "Community Member"}
             </div>
 
             <div className="cxchat-sidebar-user-role">

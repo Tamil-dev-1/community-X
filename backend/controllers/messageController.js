@@ -1,34 +1,78 @@
+
 import Message from "../models/Message.js";
 
-// Get all group chat messages
+// ============================================================
+// HELPER: GET SOCKET.IO INSTANCE
+// ============================================================
+
+const getIO = (req) => req.app.get("io");
+
+// ============================================================
+// HELPER: FORMAT ATTACHMENT DATA
+// ============================================================
+
+const getAttachmentData = (file) => {
+  if (!file) return null;
+
+  return {
+    originalName: file.originalname,
+    fileName: file.filename,
+    url: `/uploads/${file.filename}`,
+    mimeType: file.mimetype,
+    size: file.size,
+  };
+};
+
+// ============================================================
+// HELPER: FORMAT MESSAGE RESPONSE
+// ============================================================
+
+const formatMessage = (message) => {
+  const data =
+    typeof message.toObject === "function"
+      ? message.toObject()
+      : message;
+
+  return {
+    ...data,
+    isEdited: data.isEdited === true,
+    attachment: data.attachment || null,
+  };
+};
+
+// ============================================================
+// 1. GET GROUP MESSAGES
+// GET /api/messages/group
+// ============================================================
+
 export const getGroupMessages = async (req, res) => {
   try {
     const messages = await Message.find({
       chatType: "GROUP",
-    }).sort({
-      createdAt: 1,
-    });
+    }).sort({ createdAt: 1 });
 
     return res.status(200).json({
       success: true,
-      messages,
+      messages: messages.map(formatMessage),
     });
   } catch (error) {
-    console.error("Get Group Messages Error:", error);
+    console.error("Get group messages error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Server error while fetching messages",
+      message: "Failed to fetch group messages",
     });
   }
 };
 
-// Create a group chat message
+// ============================================================
+// 2. CREATE GROUP MESSAGE WITH OPTIONAL DOCUMENT
+// POST /api/messages/group
+// ============================================================
+
 export const createGroupMessage = async (req, res) => {
   try {
-    // Wallet comes from verified JWT
-    const senderWallet =
-      req.user.walletAddress;
+    const senderWallet = req.user?.walletAddress;
 
     const {
       senderName,
@@ -36,368 +80,29 @@ export const createGroupMessage = async (req, res) => {
       message,
     } = req.body;
 
-    if (!senderWallet) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Authenticated wallet address is missing",
-      });
-    }
+    const text =
+      typeof message === "string" ? message.trim() : "";
 
-    if (!senderName || !message) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Sender name and message are required",
-      });
-    }
-
-   const newMessage = await Message.create({
-  senderWallet,
-  senderName,
-  senderAvatar: senderAvatar || "",
-  message: message.trim(),
-  chatType: "GROUP",
-});
-
-console.log("=================================");
-console.log("GROUP MESSAGE SAVED TO MONGODB");
-console.log("Message ID:", newMessage._id);
-console.log("Sender Wallet:", newMessage.senderWallet);
-console.log("Sender Name:", newMessage.senderName);
-console.log("Message:", newMessage.message);
-console.log("Chat Type:", newMessage.chatType);
-console.log("=================================");
-
-    // Get Socket.IO instance
-    const io = req.app.get("io");
-
-    // Send the new message to all connected users
-    io.emit("new-group-message", newMessage);
-
-    return res.status(201).json({
-      success: true,
-      message: "Message sent successfully",
-      data: newMessage,
-    });
-  } catch (error) {
-    console.error(
-      "Create Group Message Error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Server error while creating message",
-    });
-  }
-};
-
-// ============================================================
-// UPDATE A GROUP CHAT MESSAGE
-// ============================================================
-
-export const updateGroupMessage = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const { message } = req.body;
-
-    // Wallet comes from JWT
-    const walletAddress =
-      req.user.walletAddress;
-
-    // Make sure authenticated wallet exists
-    if (!walletAddress) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Authenticated wallet address is missing",
-      });
-    }
-
-    // Validate message
-    if (!message || !message.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Message content is required",
-      });
-    }
-
-    // Find ONLY the user's own message
-    const updatedMessage =
-      await Message.findOneAndUpdate(
-        {
-          _id: id,
-
-          chatType: "GROUP",
-
-          // IMPORTANT:
-          // Only message owner can update
-          senderWallet:
-            walletAddress.toLowerCase(),
-        },
-        {
-          message: message.trim(),
-        },
-        {
-          new: true,
-          runValidators: true,
-        }
-      );
-
-    // Message not found OR belongs to another user
-    if (!updatedMessage) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Message not found or you are not allowed to edit this message",
-      });
-    }
-
-    const io = req.app.get("io");
-
-    io.emit("message-updated", updatedMessage);
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Group message updated successfully",
-      data: updatedMessage,
-    });
-  } catch (error) {
-    console.error(
-      "Update Group Message Error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Server error while updating message",
-    });
-  }
-};
-
-// ============================================================
-// DELETE A GROUP CHAT MESSAGE
-// ============================================================
-
-export const deleteGroupMessage = async (
-  req,
-  res
-) => {
-  try {
-    const { id } = req.params;
-
-    // Wallet comes from JWT
-    const walletAddress =
-      req.user.walletAddress;
-
-    // Make sure authenticated wallet exists
-    if (!walletAddress) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Authenticated wallet address is missing",
-      });
-    }
-
-    // Delete ONLY the user's own message
-    const deletedMessage =
-      await Message.findOneAndDelete({
-        _id: id,
-
-        chatType: "GROUP",
-
-        // IMPORTANT:
-        // Only message owner can delete
-        senderWallet:
-          walletAddress.toLowerCase(),
-      });
-
-    // Message not found OR belongs to another user
-    if (!deletedMessage) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Message not found or you are not allowed to delete this message",
-      });
-    }
-
-    const io = req.app.get("io");
-
-    io.emit("message-deleted", deletedMessage);
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Group message deleted successfully",
-      data: deletedMessage,
-    });
-  } catch (error) {
-    console.error(
-      "Delete Group Message Error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Server error while deleting message",
-    });
-  }
-};
-
-
-
-
-
-// ============================================================
-// GET PRIVATE CHAT MESSAGES
-// ============================================================
-
-export const getPrivateMessages = async (req, res) => {
-  try {
-    const myWallet = req.user?.walletAddress;
-    const { wallet } = req.params;
-
-    // --------------------------------------------------------
-    // VALIDATE AUTHENTICATED WALLET
-    // --------------------------------------------------------
-
-    if (!myWallet) {
-      return res.status(401).json({
-        success: false,
-        message: "Authenticated wallet address is missing",
-      });
-    }
-
-    // --------------------------------------------------------
-    // VALIDATE TARGET WALLET
-    // --------------------------------------------------------
-
-    if (!wallet) {
-      return res.status(400).json({
-        success: false,
-        message: "Receiver wallet address is required",
-      });
-    }
-
-    const myWalletLower = myWallet.toLowerCase().trim();
-    const otherWalletLower = wallet.toLowerCase().trim();
-
-    console.log("=================================");
-    console.log("GET PRIVATE MESSAGES");
-    console.log("My Wallet:", myWalletLower);
-    console.log("Other Wallet:", otherWalletLower);
-    console.log("=================================");
-
-    // --------------------------------------------------------
-    // FIND BOTH DIRECTIONS
-    //
-    // Admin -> Member
-    // Member -> Admin
-    // --------------------------------------------------------
-
-    const messages = await Message.find({
-      chatType: "PRIVATE",
-      $or: [
-        {
-          senderWallet: myWalletLower,
-          receiverWallet: otherWalletLower,
-        },
-        {
-          senderWallet: otherWalletLower,
-          receiverWallet: myWalletLower,
-        },
-      ],
-    }).sort({
-      createdAt: 1,
-    });
-
-    // --------------------------------------------------------
-    // DEBUG
-    // --------------------------------------------------------
-
-    console.log(
-      "Private messages found:",
-      messages.length
-    );
-
-    messages.forEach((msg, index) => {
-      console.log(`Message ${index + 1}:`);
-      console.log("ID:", msg._id.toString());
-      console.log("Sender:", msg.senderWallet);
-      console.log("Receiver:", msg.receiverWallet);
-      console.log("Message:", msg.message);
-      console.log("Chat Type:", msg.chatType);
-    });
-
-    console.log("=================================");
-
-    // --------------------------------------------------------
-    // RESPONSE
-    // --------------------------------------------------------
-
-    return res.status(200).json({
-      success: true,
-      messages,
-    });
-  } catch (error) {
-    console.error(
-      "Get Private Messages Error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Server error while fetching private messages",
-    });
-  }
-};
-
-
-
-
-// ============================================================
-// CREATE PRIVATE CHAT MESSAGE
-// ============================================================
-
-export const createPrivateMessage = async (req, res) => {
-  try {
-    const senderWallet = req.user.walletAddress;
-    const { wallet } = req.params;
-
-    const {
-      senderName,
-      senderAvatar,
-      message,
-    } = req.body;
+    const attachment = getAttachmentData(req.file);
 
     if (!senderWallet) {
       return res.status(401).json({
         success: false,
-        message:
-          "Authenticated wallet address is missing",
+        message: "Authentication required",
       });
     }
 
-    if (!wallet) {
+    if (!senderName?.trim()) {
       return res.status(400).json({
         success: false,
-        message:
-          "Receiver wallet address is required",
+        message: "Sender name is required",
       });
     }
 
-    if (!senderName || !message) {
+    if (!text && !attachment) {
       return res.status(400).json({
         success: false,
-        message:
-          "Sender name and message are required",
+        message: "Enter a message or attach a document",
       });
     }
 
@@ -405,208 +110,485 @@ export const createPrivateMessage = async (req, res) => {
       senderWallet: senderWallet.toLowerCase(),
       senderName: senderName.trim(),
       senderAvatar: senderAvatar || "",
-      message: message.trim(),
-      chatType: "PRIVATE",
-      receiverWallet: wallet.toLowerCase(),
+      message: text,
+      chatType: "GROUP",
+      attachment,
+      isEdited: false,
     });
 
-    const io = req.app.get("io");
+    const responseMessage = formatMessage(newMessage);
+    const io = getIO(req);
 
-    const senderRoom =
-      `wallet:${senderWallet.toLowerCase()}`;
-
-    const receiverRoom =
-      `wallet:${wallet.toLowerCase()}`;
-
-    io.to(senderRoom).emit(
-      "new-private-message",
-      newMessage
-    );
-
-    io.to(receiverRoom).emit(
-      "new-private-message",
-      newMessage
-    );
-
-
+    if (io) {
+      io.emit("new-group-message", responseMessage);
+    }
 
     return res.status(201).json({
       success: true,
-      message:
-        "Private message sent successfully",
-      data: newMessage,
+      message: "Group message sent successfully",
+      data: responseMessage,
     });
   } catch (error) {
-    console.error(
-      "Create Private Message Error:",
-      error
-    );
+    console.error("Create group message error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Server error while creating private message",
+      message: "Failed to send group message",
     });
   }
 };
 
+// ============================================================
+// 3. UPDATE GROUP MESSAGE
+// PUT /api/messages/group/:id
+// ============================================================
+
+export const updateGroupMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    const senderWallet = req.user?.walletAddress;
+
+    const text =
+      typeof message === "string" ? message.trim() : "";
+
+    if (!senderWallet) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        message: "Message cannot be empty",
+      });
+    }
+
+    const existingMessage = await Message.findOne({
+      _id: id,
+      chatType: "GROUP",
+    });
+
+    if (!existingMessage) {
+      return res.status(404).json({
+        success: false,
+        message: "Group message not found",
+      });
+    }
+
+    if (
+      existingMessage.senderWallet?.toLowerCase() !==
+      senderWallet.toLowerCase()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only edit your own messages",
+      });
+    }
+
+    existingMessage.message = text;
+    existingMessage.isEdited = true;
+
+    await existingMessage.save();
+
+    const responseMessage = formatMessage(existingMessage);
+    const io = getIO(req);
+
+    if (io) {
+      io.emit("message-updated", responseMessage);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Group message updated successfully",
+      data: responseMessage,
+    });
+  } catch (error) {
+    console.error("Update group message error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update group message",
+    });
+  }
+};
 
 // ============================================================
-// UPDATE PRIVATE CHAT MESSAGE
+// 4. DELETE GROUP MESSAGE
+// DELETE /api/messages/group/:id
+// ============================================================
+
+export const deleteGroupMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const senderWallet = req.user?.walletAddress;
+
+    if (!senderWallet) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const existingMessage = await Message.findOne({
+      _id: id,
+      chatType: "GROUP",
+    });
+
+    if (!existingMessage) {
+      return res.status(404).json({
+        success: false,
+        message: "Group message not found",
+      });
+    }
+
+    if (
+      existingMessage.senderWallet?.toLowerCase() !==
+      senderWallet.toLowerCase()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete your own messages",
+      });
+    }
+
+    await Message.findByIdAndDelete(id);
+
+    const io = getIO(req);
+
+    if (io) {
+      io.emit("message-deleted", {
+        _id: id,
+        chatType: "GROUP",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Group message deleted successfully",
+      id,
+    });
+  } catch (error) {
+    console.error("Delete group message error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete group message",
+    });
+  }
+};
+
+// ============================================================
+// 5. GET PRIVATE MESSAGES
+// GET /api/messages/private/:wallet
+// ============================================================
+
+export const getPrivateMessages = async (req, res) => {
+  try {
+    const senderWallet = req.user?.walletAddress;
+    const targetWallet = req.params.wallet;
+
+    if (!senderWallet) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    if (!targetWallet) {
+      return res.status(400).json({
+        success: false,
+        message: "Target wallet is required",
+      });
+    }
+
+    const currentWallet = senderWallet.toLowerCase();
+    const otherWallet = targetWallet.toLowerCase();
+
+    const messages = await Message.find({
+      chatType: "PRIVATE",
+      $or: [
+        {
+          senderWallet: currentWallet,
+          receiverWallet: otherWallet,
+        },
+        {
+          senderWallet: otherWallet,
+          receiverWallet: currentWallet,
+        },
+      ],
+    }).sort({ createdAt: 1 });
+
+    return res.status(200).json({
+      success: true,
+      messages: messages.map(formatMessage),
+    });
+  } catch (error) {
+    console.error("Get private messages error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch private messages",
+    });
+  }
+};
+
+// ============================================================
+// 6. CREATE PRIVATE MESSAGE WITH OPTIONAL DOCUMENT
+// POST /api/messages/private/:wallet
+// ============================================================
+
+export const createPrivateMessage = async (req, res) => {
+  try {
+    const senderWallet = req.user?.walletAddress;
+    const targetWallet = req.params.wallet;
+
+    const {
+      senderName,
+      senderAvatar,
+      message,
+    } = req.body;
+
+    const text =
+      typeof message === "string" ? message.trim() : "";
+
+    const attachment = getAttachmentData(req.file);
+
+    if (!senderWallet) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    if (!targetWallet) {
+      return res.status(400).json({
+        success: false,
+        message: "Recipient wallet is required",
+      });
+    }
+
+    if (!senderName?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Sender name is required",
+      });
+    }
+
+    if (!text && !attachment) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter a message or attach a document",
+      });
+    }
+
+    const newMessage = await Message.create({
+      senderWallet: senderWallet.toLowerCase(),
+      senderName: senderName.trim(),
+      senderAvatar: senderAvatar || "",
+      message: text,
+      chatType: "PRIVATE",
+      receiverWallet: targetWallet.toLowerCase(),
+      attachment,
+      isEdited: false,
+    });
+
+    const responseMessage = formatMessage(newMessage);
+    const io = getIO(req);
+
+    if (io) {
+      // Notify both sender and receiver wallet rooms.
+      io.to(`wallet:${senderWallet.toLowerCase()}`).emit(
+        "new-private-message",
+        responseMessage
+      );
+
+      io.to(`wallet:${targetWallet.toLowerCase()}`).emit(
+        "new-private-message",
+        responseMessage
+      );
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Private message sent successfully",
+      data: responseMessage,
+    });
+  } catch (error) {
+    console.error("Create private message error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send private message",
+    });
+  }
+};
+
+// ============================================================
+// 7. UPDATE PRIVATE MESSAGE
+// PUT /api/messages/private/:id
 // ============================================================
 
 export const updatePrivateMessage = async (req, res) => {
   try {
     const { id } = req.params;
     const { message } = req.body;
-    const walletAddress = req.user.walletAddress;
+    const senderWallet = req.user?.walletAddress;
 
-    if (!walletAddress) {
+    const text =
+      typeof message === "string" ? message.trim() : "";
+
+    if (!senderWallet) {
       return res.status(401).json({
         success: false,
-        message:
-          "Authenticated wallet address is missing",
+        message: "Authentication required",
       });
     }
 
-    if (!message || !message.trim()) {
+    if (!text) {
       return res.status(400).json({
         success: false,
-        message: "Message content is required",
+        message: "Message cannot be empty",
       });
     }
 
-    const updatedMessage =
-      await Message.findOneAndUpdate(
-        {
-          _id: id,
-          chatType: "PRIVATE",
-          senderWallet:
-            walletAddress.toLowerCase(),
-        },
-        {
-          message: message.trim(),
-        },
-        {
-          new: true,
-          runValidators: true,
-        }
-      );
+    const existingMessage = await Message.findOne({
+      _id: id,
+      chatType: "PRIVATE",
+    });
 
-    if (!updatedMessage) {
+    if (!existingMessage) {
       return res.status(404).json({
         success: false,
-        message:
-          "Message not found or you are not allowed to edit this message",
+        message: "Private message not found",
       });
     }
 
-    const io = req.app.get("io");
+    if (
+      existingMessage.senderWallet?.toLowerCase() !==
+      senderWallet.toLowerCase()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only edit your own messages",
+      });
+    }
 
-    const senderRoom =
-      `wallet:${updatedMessage.senderWallet.toLowerCase()}`;
+    existingMessage.message = text;
+    existingMessage.isEdited = true;
 
-    const receiverRoom =
-      `wallet:${updatedMessage.receiverWallet.toLowerCase()}`;
+    await existingMessage.save();
 
-    io.to(senderRoom).emit(
-      "private-message-updated",
-      updatedMessage
-    );
+    const responseMessage = formatMessage(existingMessage);
+    const io = getIO(req);
 
-    io.to(receiverRoom).emit(
-      "private-message-updated",
-      updatedMessage
-    );
+    if (io) {
+      io.to(`wallet:${existingMessage.senderWallet.toLowerCase()}`).emit(
+        "private-message-updated",
+        responseMessage
+      );
+
+      io.to(`wallet:${existingMessage.receiverWallet.toLowerCase()}`).emit(
+        "private-message-updated",
+        responseMessage
+      );
+
+      // Compatibility event if your frontend already listens for this name.
+      io.emit("message-updated", responseMessage);
+    }
 
     return res.status(200).json({
       success: true,
-      message:
-        "Private message updated successfully",
-      data: updatedMessage,
+      message: "Private message updated successfully",
+      data: responseMessage,
     });
   } catch (error) {
-    console.error(
-      "Update Private Message Error:",
-      error
-    );
+    console.error("Update private message error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Server error while updating private message",
+      message: "Failed to update private message",
     });
   }
 };
 
-
 // ============================================================
-// DELETE PRIVATE CHAT MESSAGE
+// 8. DELETE PRIVATE MESSAGE
+// DELETE /api/messages/private/:id
 // ============================================================
 
 export const deletePrivateMessage = async (req, res) => {
   try {
     const { id } = req.params;
-    const walletAddress = req.user.walletAddress;
+    const senderWallet = req.user?.walletAddress;
 
-    if (!walletAddress) {
+    if (!senderWallet) {
       return res.status(401).json({
         success: false,
-        message:
-          "Authenticated wallet address is missing",
+        message: "Authentication required",
       });
     }
 
-    const deletedMessage =
-      await Message.findOneAndDelete({
-        _id: id,
-        chatType: "PRIVATE",
-        senderWallet:
-          walletAddress.toLowerCase(),
-      });
+    const existingMessage = await Message.findOne({
+      _id: id,
+      chatType: "PRIVATE",
+    });
 
-    if (!deletedMessage) {
+    if (!existingMessage) {
       return res.status(404).json({
         success: false,
-        message:
-          "Message not found or you are not allowed to delete this message",
+        message: "Private message not found",
       });
     }
 
-    const io = req.app.get("io");
+    if (
+      existingMessage.senderWallet?.toLowerCase() !==
+      senderWallet.toLowerCase()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete your own messages",
+      });
+    }
 
-    const senderRoom =
-      `wallet:${deletedMessage.senderWallet.toLowerCase()}`;
+    await Message.findByIdAndDelete(id);
 
-    const receiverRoom =
-      `wallet:${deletedMessage.receiverWallet.toLowerCase()}`;
+    const io = getIO(req);
 
-    io.to(senderRoom).emit(
-      "private-message-deleted",
-      deletedMessage
-    );
+    if (io) {
+      const payload = {
+        _id: id,
+        chatType: "PRIVATE",
+        senderWallet: existingMessage.senderWallet,
+        receiverWallet: existingMessage.receiverWallet,
+      };
 
-    io.to(receiverRoom).emit(
-      "private-message-deleted",
-      deletedMessage
-    );
+      io.to(`wallet:${existingMessage.senderWallet.toLowerCase()}`).emit(
+        "private-message-deleted",
+        payload
+      );
+
+      io.to(`wallet:${existingMessage.receiverWallet.toLowerCase()}`).emit(
+        "private-message-deleted",
+        payload
+      );
+
+      io.emit("message-deleted", payload);
+    }
 
     return res.status(200).json({
       success: true,
-      message:
-        "Private message deleted successfully",
-      data: deletedMessage,
+      message: "Private message deleted successfully",
+      id,
     });
   } catch (error) {
-    console.error(
-      "Delete Private Message Error:",
-      error
-    );
+    console.error("Delete private message error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Server error while deleting private message",
+      message: "Failed to delete private message",
     });
   }
 };

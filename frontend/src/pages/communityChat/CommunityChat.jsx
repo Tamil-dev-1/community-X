@@ -15,47 +15,35 @@ import ChatInput from "../../components/community-chat/ChatInput";
 
 import "./CommunityChat.css";
 
+// ============================================================
+// API CONFIG
+// ============================================================
+
 const API_URL = "http://localhost:5000/api/messages";
 const SOCKET_URL = "http://localhost:5000";
 
-/*
-  Current Community X Admin wallet.
-
-  We are using this temporarily for the member → admin
-  private chat.
-
-  Later we can fetch the admin wallet dynamically
-  from the backend.
-*/
-const ADMIN_WALLET =
-  "0x2db4d6fa605a41b6953a28c7a2e6a312da336ec1";
+const ADMIN_IDENTIFIER = "admin:adm-001";
 
 const DEFAULT_AVATAR =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80";
 
+// ============================================================
+// COMPONENT
+// ============================================================
+
 const CommunityChat = () => {
   const location = useLocation();
 
-  /*
-    Community user information can come from:
-    1. location.state
-    2. localStorage wallet
-  */
-  const communityUser =
-    location.state?.communityUser;
+  // ----------------------------------------------------------
+  // AUTHENTICATION AND USER
+  // ----------------------------------------------------------
 
-  const walletAddressFromState =
-    location.state?.walletAddress;
+  const communityUser = location.state?.communityUser;
+  const walletAddressFromState = location.state?.walletAddress;
 
-  const storedWallet =
-    localStorage.getItem("communityXWallet");
+  const storedWallet = localStorage.getItem("communityXWallet");
+  const token = localStorage.getItem("communityXToken");
 
-  const token =
-    localStorage.getItem("communityXToken");
-
-  /*
-    Current logged-in member
-  */
   const currentUser = {
     walletAddress:
       communityUser?.walletAddress ||
@@ -68,8 +56,7 @@ const CommunityChat = () => {
       communityUser?.username ||
       "Community Member",
 
-    username:
-      communityUser?.username || "",
+    username: communityUser?.username || "",
 
     avatar:
       communityUser?.profileImage ||
@@ -78,90 +65,70 @@ const CommunityChat = () => {
     isAdmin: false,
   };
 
-  /* -----------------------------
-     State
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // STATE
+  // ----------------------------------------------------------
 
-  const [activeTab, setActiveTab] =
-    useState("group");
+  const [activeTab, setActiveTab] = useState("group");
 
-  const [messages, setMessages] =
-    useState([]);
+  const [messages, setMessages] = useState([]);
+  const [adminMessages, setAdminMessages] = useState([]);
 
-  const [adminMessages, setAdminMessages] =
-    useState([]);
+  const [inputText, setInputText] = useState("");
 
-  const [inputText, setInputText] =
-    useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  const [mobileMenuOpen, setMobileMenuOpen] =
-    useState(false);
+  const [loading, setLoading] = useState(true);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const [showEmojiPicker, setShowEmojiPicker] =
-    useState(false);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [deletingMessageId, setDeletingMessageId] = useState(null);
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [adminLoading, setAdminLoading] =
-    useState(false);
-
-  const [sending, setSending] =
-    useState(false);
-
-  const [editingMessageId, setEditingMessageId] =
-    useState(null);
-
-  const [editingText, setEditingText] =
-    useState("");
-
-  const [updatingMessage, setUpdatingMessage] =
-    useState(false);
-
-  const [deletingMessageId, setDeletingMessageId] =
-    useState(null);
+  // ----------------------------------------------------------
+  // REFS
+  // ----------------------------------------------------------
 
   const socketRef = useRef(null);
-
   const messagesEndRef = useRef(null);
 
-  /* -----------------------------
-     Format message helper
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // FORMAT MESSAGE
+  // ----------------------------------------------------------
 
   const formatMessage = (message) => {
+    const createdAt = message?.createdAt || null;
+
     return {
-      id:
-        message?._id ||
-        message?.id,
+      id: message?._id || message?.id,
 
-      senderId:
-        message?.senderWallet,
+      senderId: message?.senderWallet || "",
+      senderWallet: message?.senderWallet || "",
 
-      senderWallet:
-        message?.senderWallet,
-
-      receiverWallet:
-        message?.receiverWallet || null,
+      receiverWallet: message?.receiverWallet || null,
 
       senderName:
-        message?.senderName ||
-        "Community Member",
+        message?.senderName || "Community Member",
 
       avatar:
-        message?.senderAvatar ||
-        DEFAULT_AVATAR,
+        message?.senderAvatar || DEFAULT_AVATAR,
 
       isAdmin:
         message?.senderWallet?.toLowerCase() ===
-        ADMIN_WALLET.toLowerCase(),
+        ADMIN_IDENTIFIER.toLowerCase(),
 
-      text:
-        message?.message || "",
+      text: message?.message || "",
+
+      isEdited: message?.isEdited === true,
+
+      // Attachment returned by the backend
+      attachment: message?.attachment || null,
+
+      createdAt,
 
       time: new Date(
-        message?.createdAt ||
-          Date.now()
+        createdAt || Date.now()
       ).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -169,16 +136,25 @@ const CommunityChat = () => {
     };
   };
 
-  /* -----------------------------
-     Socket.IO
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // GET MESSAGE ID FROM DIFFERENT RESPONSE SHAPES
+  // ----------------------------------------------------------
+
+  const getMessageId = (message) =>
+    message?._id ||
+    message?.id ||
+    message?.messageId ||
+    null;
+
+  // ----------------------------------------------------------
+  // SOCKET.IO
+  // ----------------------------------------------------------
 
   useEffect(() => {
     if (!token) {
-      console.warn(
-        "Community X token not found."
-      );
-
+      console.warn("Community X token not found.");
+      setLoading(false);
+      setAdminLoading(false);
       return;
     }
 
@@ -188,970 +164,843 @@ const CommunityChat = () => {
 
     socketRef.current = socket;
 
+    // Authenticate socket
     socket.on("connect", () => {
-      console.log(
-        "Community X socket connected:",
-        socket.id
-      );
+      console.log("Community X socket connected:", socket.id);
 
-      /*
-        Authenticate socket with the
-        currently logged-in MEMBER token.
-      */
-      socket.emit(
-        "authenticate-socket",
-        {
-          token,
-        }
+      socket.emit("authenticate-socket", { token });
+    });
+
+    socket.on("socket-authenticated", (data) => {
+      console.log("Member socket authenticated:", data);
+    });
+
+    socket.on("socket-auth-error", (error) => {
+      console.error("Member socket authentication error:", error);
+    });
+
+    // --------------------------------------------------------
+    // GROUP: NEW MESSAGE
+    // --------------------------------------------------------
+
+    socket.on("new-group-message", (newMessage) => {
+      const formattedMessage = formatMessage(newMessage);
+
+      if (!formattedMessage.id) return;
+
+      setMessages((previous) => {
+        const exists = previous.some(
+          (message) =>
+            String(message.id) === String(formattedMessage.id)
+        );
+
+        if (exists) return previous;
+
+        return [...previous, formattedMessage];
+      });
+    });
+
+    // --------------------------------------------------------
+    // GROUP: MESSAGE UPDATED
+    // --------------------------------------------------------
+
+    socket.on("message-updated", (updatedMessage) => {
+      const updatedId = getMessageId(updatedMessage);
+
+      if (!updatedId) return;
+
+      setMessages((previous) =>
+        previous.map((message) => {
+          if (String(message.id) !== String(updatedId)) {
+            return message;
+          }
+
+          const updatedCreatedAt =
+            updatedMessage.createdAt ||
+            message.createdAt ||
+            new Date().toISOString();
+
+          return {
+            ...message,
+            text:
+              updatedMessage.message ?? message.text,
+            isEdited: updatedMessage.isEdited === true,
+            attachment:
+              updatedMessage.attachment ?? message.attachment,
+            createdAt: updatedCreatedAt,
+            time: new Date(updatedCreatedAt).toLocaleTimeString(
+              [],
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+              }
+            ),
+          };
+        })
       );
     });
 
-    socket.on(
-      "socket-authenticated",
-      (data) => {
-        console.log(
-          "Member socket authenticated:",
-          data
+    // --------------------------------------------------------
+    // GROUP: MESSAGE DELETED
+    // --------------------------------------------------------
+
+    socket.on("message-deleted", (deletedMessage) => {
+      const deletedId = getMessageId(deletedMessage);
+
+      if (!deletedId) return;
+
+      setMessages((previous) =>
+        previous.filter(
+          (message) => String(message.id) !== String(deletedId)
+        )
+      );
+    });
+
+    // --------------------------------------------------------
+    // PRIVATE: NEW MESSAGE
+    // --------------------------------------------------------
+
+    socket.on("new-private-message", (newMessage) => {
+      const senderWallet = newMessage?.senderWallet
+        ?.toLowerCase()
+        .trim();
+
+      const receiverWallet = newMessage?.receiverWallet
+        ?.toLowerCase()
+        .trim();
+
+      const currentWallet = currentUser.walletAddress
+        ?.toLowerCase()
+        .trim();
+
+      const adminIdentifier = ADMIN_IDENTIFIER.toLowerCase();
+
+      const belongsToAdminChat =
+        (senderWallet === currentWallet &&
+          receiverWallet === adminIdentifier) ||
+        (senderWallet === adminIdentifier &&
+          receiverWallet === currentWallet);
+
+      if (!belongsToAdminChat) return;
+
+      const formattedMessage = formatMessage(newMessage);
+
+      if (!formattedMessage.id) return;
+
+      setAdminMessages((previous) => {
+        const exists = previous.some(
+          (message) =>
+            String(message.id) === String(formattedMessage.id)
         );
-      }
-    );
 
-    socket.on(
-      "socket-auth-error",
-      (error) => {
-        console.error(
-          "Member socket authentication error:",
-          error
+        if (exists) return previous;
+
+        return [...previous, formattedMessage];
+      });
+    });
+
+    // --------------------------------------------------------
+    // PRIVATE: MESSAGE UPDATED
+    // --------------------------------------------------------
+
+    socket.on("private-message-updated", (updatedMessage) => {
+      const updatedId = getMessageId(updatedMessage);
+
+      if (!updatedId) return;
+
+      const senderWallet = updatedMessage?.senderWallet
+        ?.toLowerCase()
+        .trim();
+
+      const receiverWallet = updatedMessage?.receiverWallet
+        ?.toLowerCase()
+        .trim();
+
+      const currentWallet = currentUser.walletAddress
+        ?.toLowerCase()
+        .trim();
+
+      const adminIdentifier = ADMIN_IDENTIFIER.toLowerCase();
+
+      const belongsToAdminChat =
+        (senderWallet === currentWallet &&
+          receiverWallet === adminIdentifier) ||
+        (senderWallet === adminIdentifier &&
+          receiverWallet === currentWallet);
+
+      if (!belongsToAdminChat) return;
+
+      setAdminMessages((previous) => {
+        const exists = previous.some(
+          (message) =>
+            String(message.id) === String(updatedId)
         );
-      }
-    );
 
-    /* -----------------------------
-       GROUP MESSAGE
-    ----------------------------- */
-
-    socket.on(
-      "new-group-message",
-      (newMessage) => {
-        const formattedMessage =
-          formatMessage(newMessage);
-
-        setMessages((prev) => {
-          const exists = prev.some(
-            (message) =>
-              message.id ===
-              formattedMessage.id
-          );
-
-          if (exists) {
-            return prev;
-          }
-
+        if (!exists) {
           return [
-            ...prev,
-            formattedMessage,
+            ...previous,
+            formatMessage({
+              ...updatedMessage,
+              isEdited: true,
+            }),
           ];
-        });
-      }
-    );
-
-    /* -----------------------------
-       GROUP MESSAGE UPDATED
-    ----------------------------- */
-
-    socket.on(
-      "message-updated",
-      (updatedMessage) => {
-        setMessages((prev) =>
-          prev.map((message) => {
-            if (
-              message.id ===
-              (
-                updatedMessage?._id ||
-                updatedMessage?.id
-              )
-            ) {
-              return {
-                ...message,
-                text:
-                  updatedMessage.message,
-              };
-            }
-
-            return message;
-          })
-        );
-      }
-    );
-
-    /* -----------------------------
-       GROUP MESSAGE DELETED
-    ----------------------------- */
-
-    socket.on(
-      "message-deleted",
-      (deletedMessage) => {
-        const deletedId =
-          deletedMessage?._id ||
-          deletedMessage?.id ||
-          deletedMessage?.messageId;
-
-        setMessages((prev) =>
-          prev.filter(
-            (message) =>
-              message.id !== deletedId
-          )
-        );
-      }
-    );
-
-    /* -----------------------------
-       PRIVATE MESSAGE
-    ----------------------------- */
-
-    socket.on(
-      "new-private-message",
-      (newMessage) => {
-        console.log(
-          "New private message received:",
-          newMessage
-        );
-
-        const senderWallet =
-          newMessage?.senderWallet?.toLowerCase();
-
-        const receiverWallet =
-          newMessage?.receiverWallet?.toLowerCase();
-
-        const currentWallet =
-          currentUser.walletAddress?.toLowerCase();
-
-        const adminWallet =
-          ADMIN_WALLET.toLowerCase();
-
-        /*
-          Only accept messages belonging
-          to this member ↔ admin conversation.
-        */
-        const belongsToAdminChat =
-          (
-            senderWallet ===
-              currentWallet &&
-            receiverWallet ===
-              adminWallet
-          ) ||
-          (
-            senderWallet ===
-              adminWallet &&
-            receiverWallet ===
-              currentWallet
-          );
-
-        if (!belongsToAdminChat) {
-          return;
         }
 
-        const formattedMessage =
-          formatMessage(newMessage);
-
-        setAdminMessages((prev) => {
-          const exists = prev.some(
-            (message) =>
-              message.id ===
-              formattedMessage.id
-          );
-
-          if (exists) {
-            return prev;
+        return previous.map((message) => {
+          if (String(message.id) !== String(updatedId)) {
+            return message;
           }
 
-          return [
-            ...prev,
-            formattedMessage,
-          ];
+          const updatedCreatedAt =
+            updatedMessage.createdAt ||
+            message.createdAt ||
+            new Date().toISOString();
+
+          return {
+            ...message,
+            text:
+              updatedMessage.message ?? message.text,
+            isEdited: true,
+            attachment:
+              updatedMessage.attachment ?? message.attachment,
+            createdAt: updatedCreatedAt,
+            time: new Date(updatedCreatedAt).toLocaleTimeString(
+              [],
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+              }
+            ),
+          };
         });
-      }
-    );
+      });
+    });
+
+    // --------------------------------------------------------
+    // PRIVATE: MESSAGE DELETED
+    // --------------------------------------------------------
+
+    socket.on("private-message-deleted", (deletedMessage) => {
+      const deletedId = getMessageId(deletedMessage);
+
+      if (!deletedId) return;
+
+      setAdminMessages((previous) =>
+        previous.filter(
+          (message) => String(message.id) !== String(deletedId)
+        )
+      );
+    });
 
     socket.on("disconnect", () => {
-      console.log(
-        "Community X socket disconnected"
-      );
+      console.log("Community X socket disconnected");
     });
 
+    // --------------------------------------------------------
+    // CLEANUP
+    // --------------------------------------------------------
+
     return () => {
+      socket.removeAllListeners();
       socket.disconnect();
 
-      socketRef.current = null;
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+      }
     };
-  }, [
-    token,
-    currentUser.walletAddress,
-  ]);
+  }, [token, currentUser.walletAddress]);
 
-  /* -----------------------------
-     Auto Scroll
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // AUTO SCROLL
+  // ----------------------------------------------------------
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
     });
-  }, [
-    messages,
-    adminMessages,
-    activeTab,
-  ]);
+  }, [messages, adminMessages, activeTab]);
 
-  /* -----------------------------
-     Fetch Group Messages
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // FETCH GROUP MESSAGES
+  // ----------------------------------------------------------
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchGroupMessages = async () => {
+      setLoading(true);
+
+      if (!token) {
+        setMessages([]);
+        setLoading(false);
+        return;
+      }
+
       try {
-        setLoading(true);
+        const response = await fetch(`${API_URL}/group`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-        if (!token) {
-          console.warn(
-            "No Community X token found."
-          );
-
-          setMessages([]);
-
-          return;
-        }
-
-        const response = await fetch(
-          `${API_URL}/group`,
-          {
-            method: "GET",
-
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (response.status === 401) {
-          console.error(
-            "Community X token expired or invalid."
-          );
-
-          setMessages([]);
-
-          return;
-        }
-
-        const data =
-          await response.json();
+        const data = await response.json();
 
         if (!response.ok) {
           throw new Error(
-            data.message ||
-              "Failed to fetch messages"
+            data.message || "Failed to fetch group messages"
           );
         }
 
-        const serverMessages =
-          Array.isArray(data)
-            ? data
-            : data.messages || [];
+        const serverMessages = Array.isArray(data)
+          ? data
+          : Array.isArray(data.messages)
+          ? data.messages
+          : Array.isArray(data.data)
+          ? data.data
+          : [];
 
-        const formattedMessages =
-          serverMessages.map(
-            formatMessage
-          );
-
-        setMessages(
-          formattedMessages
-        );
+        if (!cancelled) {
+          setMessages(serverMessages.map(formatMessage));
+        }
       } catch (error) {
-        console.error(
-          "Fetch group messages error:",
-          error
-        );
+        console.error("Fetch group messages error:", error);
 
-        setMessages([]);
+        if (!cancelled) {
+          setMessages([]);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
     fetchGroupMessages();
+
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
-  /* -----------------------------
-     Fetch Private Admin Messages
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // FETCH PRIVATE ADMIN MESSAGES
+  // ----------------------------------------------------------
 
   useEffect(() => {
-    const fetchAdminMessages =
-      async () => {
-        /*
-          IMPORTANT:
-          Private history must be loaded when the
-          member page opens/refreshed.
+    let cancelled = false;
 
-          We do NOT wait for activeTab === "admin"
-          because activeTab resets to "group" after
-          a page refresh.
-        */
+    const fetchAdminMessages = async () => {
+      if (!token || !currentUser.walletAddress) {
+        setAdminMessages([]);
+        setAdminLoading(false);
+        return;
+      }
 
-        if (!token) {
-          console.warn(
-            "No Community X token found."
+      setAdminLoading(true);
+
+      try {
+        const response = await fetch(
+          `${API_URL}/private/${ADMIN_IDENTIFIER}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Failed to fetch private messages"
           );
-
-          setAdminMessages([]);
-
-          return;
         }
 
-        if (!currentUser.walletAddress) {
-          console.warn(
-            "Member wallet address is missing."
-          );
+        const serverMessages = Array.isArray(data)
+          ? data
+          : Array.isArray(data.messages)
+          ? data.messages
+          : Array.isArray(data.data)
+          ? data.data
+          : [];
 
-          setAdminMessages([]);
+        const memberWallet = currentUser.walletAddress
+          .toLowerCase()
+          .trim();
 
-          return;
+        const adminIdentifier = ADMIN_IDENTIFIER.toLowerCase();
+
+        const formattedMessages = serverMessages
+          .filter((message) => {
+            const sender = message?.senderWallet
+              ?.toLowerCase()
+              .trim();
+
+            const receiver = message?.receiverWallet
+              ?.toLowerCase()
+              .trim();
+
+            return (
+              (sender === memberWallet &&
+                receiver === adminIdentifier) ||
+              (sender === adminIdentifier &&
+                receiver === memberWallet)
+            );
+          })
+          .map(formatMessage);
+
+        if (!cancelled) {
+          setAdminMessages(formattedMessages);
         }
+      } catch (error) {
+        console.error("Fetch private messages error:", error);
 
-        try {
-          setAdminLoading(true);
-
-          console.log(
-            "Loading private messages with admin:",
-            ADMIN_WALLET
-          );
-
-          console.log(
-            "Member wallet:",
-            currentUser.walletAddress
-          );
-
-          const response =
-            await fetch(
-              `${API_URL}/private/${ADMIN_WALLET}`,
-              {
-                method: "GET",
-
-                headers: {
-                  Authorization:
-                    `Bearer ${token}`,
-                },
-              }
-            );
-
-          if (
-            response.status === 401
-          ) {
-            console.error(
-              "Private chat authentication failed."
-            );
-
-            setAdminMessages([]);
-
-            return;
-          }
-
-          const data =
-            await response.json();
-
-          if (!response.ok) {
-            throw new Error(
-              data.message ||
-                "Failed to fetch private messages"
-            );
-          }
-
-          const serverMessages =
-            Array.isArray(data)
-              ? data
-              : data.messages || [];
-
-          console.log(
-            "Private messages loaded from MongoDB:",
-            serverMessages.length
-          );
-
-          const member =
-            currentUser.walletAddress.toLowerCase();
-
-          const admin =
-            ADMIN_WALLET.toLowerCase();
-
-          const formattedMessages =
-            serverMessages
-              .filter((message) => {
-                const sender =
-                  message?.senderWallet?.toLowerCase();
-
-                const receiver =
-                  message?.receiverWallet?.toLowerCase();
-
-                return (
-                  (
-                    sender === member &&
-                    receiver === admin
-                  ) ||
-                  (
-                    sender === admin &&
-                    receiver === member
-                  )
-                );
-              })
-              .map(formatMessage);
-
-          console.log(
-            "Member private chat messages:",
-            formattedMessages.length
-          );
-
-          setAdminMessages(
-            formattedMessages
-          );
-        } catch (error) {
-          console.error(
-            "Fetch private messages error:",
-            error
-          );
-
+        if (!cancelled) {
           setAdminMessages([]);
-        } finally {
+        }
+      } finally {
+        if (!cancelled) {
           setAdminLoading(false);
         }
-      };
+      }
+    };
 
     fetchAdminMessages();
-  }, [
-    token,
-    currentUser.walletAddress,
-  ]);
 
-  /* -----------------------------
-     Send Message
-  ----------------------------- */
+    return () => {
+      cancelled = true;
+    };
+  }, [token, currentUser.walletAddress]);
+
+  // ----------------------------------------------------------
+  // SEND / EDIT MESSAGE
+  // ----------------------------------------------------------
 
   const handleSendMessage = async (
-    event
+    event,
+    selectedFile = null
   ) => {
     event?.preventDefault();
 
-    const trimmedText =
-      inputText.trim();
+    const trimmedText = inputText.trim();
 
-    if (!trimmedText) {
-      return;
+    if (sending) return false;
+
+    // Allow text-only, file-only, or text-plus-file messages.
+    if (!trimmedText && !selectedFile && !editingMessageId) {
+      return false;
     }
 
     if (!currentUser.walletAddress) {
       alert(
         "Wallet information is missing. Please connect your wallet again."
       );
-
-      return;
+      return false;
     }
 
     if (!token) {
       alert(
         "Your Community X session has expired. Please login again."
       );
-
-      return;
+      return false;
     }
 
+    setSending(true);
+
     try {
-      setSending(true);
+      // ------------------------------------------------------
+      // EDIT EXISTING MESSAGE
+      // ------------------------------------------------------
 
-      /* -----------------------------
-         ADMIN PRIVATE CHAT
-      ----------------------------- */
-
-      if (activeTab === "admin") {
-        const response =
-          await fetch(
-            `${API_URL}/private/${ADMIN_WALLET}`,
-            {
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-
-                Authorization:
-                  `Bearer ${token}`,
-              },
-
-              body: JSON.stringify({
-                senderName:
-                  currentUser.name,
-
-                senderAvatar:
-                  currentUser.avatar,
-
-                message:
-                  trimmedText,
-              }),
-            }
+      if (editingMessageId) {
+        if (selectedFile) {
+          alert(
+            "Please finish editing before attaching a document."
           );
+          return false;
+        }
 
-        const data =
-          await response.json();
+        if (!trimmedText) {
+          alert("Message text cannot be empty while editing.");
+          return false;
+        }
+
+        const isPrivateChat = activeTab === "admin";
+
+        const endpoint = isPrivateChat
+          ? `${API_URL}/private/${editingMessageId}`
+          : `${API_URL}/group/${editingMessageId}`;
+
+        const response = await fetch(endpoint, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            message: trimmedText,
+          }),
+        });
+
+        const data = await response.json();
 
         if (!response.ok) {
           throw new Error(
-            data.message ||
-              "Failed to send private message"
+            data.message || "Failed to update message"
           );
         }
 
-        console.log(
-          "Private message sent:",
-          data
-        );
+        const updatedMessage =
+          data?.data || data?.messageData || null;
 
-        /*
-          IMPORTANT:
-          Don't manually add the message.
+        const updateList = isPrivateChat
+          ? setAdminMessages
+          : setMessages;
 
-          Backend emits:
-          new-private-message
+        if (updatedMessage) {
+          const formatted = formatMessage({
+            ...updatedMessage,
+            isEdited: true,
+          });
 
-          Socket listener above will add it
-          to adminMessages.
-        */
+          updateList((previous) =>
+            previous.map((message) =>
+              String(message.id) === String(editingMessageId)
+                ? {
+                    ...message,
+                    ...formatted,
+                    isEdited: true,
+                  }
+                : message
+            )
+          );
+        } else {
+          // Fallback for APIs that don't return the updated object.
+          updateList((previous) =>
+            previous.map((message) =>
+              String(message.id) === String(editingMessageId)
+                ? {
+                    ...message,
+                    text: trimmedText,
+                    isEdited: true,
+                  }
+                : message
+            )
+          );
+        }
 
+        setEditingMessageId(null);
         setInputText("");
-
         setShowEmojiPicker(false);
 
-        return;
+        return true;
       }
 
-      /* -----------------------------
-         GROUP CHAT
-      ----------------------------- */
+      // ------------------------------------------------------
+      // CREATE MULTIPART FORM DATA
+      // ------------------------------------------------------
 
-      const response =
-        await fetch(
-          `${API_URL}/group`,
+      const formData = new FormData();
+
+      formData.append("senderName", currentUser.name);
+      formData.append("senderAvatar", currentUser.avatar);
+      formData.append("message", trimmedText);
+
+      if (selectedFile) {
+        formData.append("file", selectedFile);
+      }
+
+      // ------------------------------------------------------
+      // PRIVATE ADMIN CHAT
+      // ------------------------------------------------------
+
+      if (activeTab === "admin") {
+        const response = await fetch(
+          `${API_URL}/private/${ADMIN_IDENTIFIER}`,
           {
             method: "POST",
-
             headers: {
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                `Bearer ${token}`,
+              Authorization: `Bearer ${token}`,
             },
-
-            body: JSON.stringify({
-              senderName:
-                currentUser.name,
-
-              senderAvatar:
-                currentUser.avatar,
-
-              message:
-                trimmedText,
-            }),
+            // Do not manually set Content-Type for FormData.
+            body: formData,
           }
         );
 
-      const data =
-        await response.json();
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Failed to send private message"
+          );
+        }
+
+        // Socket.IO normally adds the message to local state.
+        // Add the response only if the socket hasn't done so.
+        const createdMessage =
+          data?.data ||
+          data?.messageData ||
+          (data?._id ? data : null);
+
+        if (createdMessage) {
+          const formatted = formatMessage(createdMessage);
+
+          if (formatted.id) {
+            setAdminMessages((previous) => {
+              const exists = previous.some(
+                (message) =>
+                  String(message.id) === String(formatted.id)
+              );
+
+              return exists
+                ? previous
+                : [...previous, formatted];
+            });
+          }
+        }
+
+        setInputText("");
+        setShowEmojiPicker(false);
+
+        return true;
+      }
+
+      // ------------------------------------------------------
+      // GROUP CHAT
+      // ------------------------------------------------------
+
+      const response = await fetch(`${API_URL}/group`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        // Do not manually set Content-Type for FormData.
+        body: formData,
+      });
+
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data.message ||
-            "Failed to send message"
+          data.message || "Failed to send group message"
         );
       }
 
+      // Add response if the socket event hasn't arrived yet.
+      const createdMessage =
+        data?.data ||
+        data?.messageData ||
+        (data?._id ? data : null);
+
+      if (createdMessage) {
+        const formatted = formatMessage(createdMessage);
+
+        if (formatted.id) {
+          setMessages((previous) => {
+            const exists = previous.some(
+              (message) =>
+                String(message.id) === String(formatted.id)
+            );
+
+            return exists
+              ? previous
+              : [...previous, formatted];
+          });
+        }
+      }
+
       setInputText("");
-
       setShowEmojiPicker(false);
-    } catch (error) {
-      console.error(
-        "Send message error:",
-        error
-      );
 
-      alert(
-        error.message ||
-          "Failed to send message."
-      );
+      return true;
+    } catch (error) {
+      console.error("Send/update message error:", error);
+
+      alert(error.message || "Failed to send message.");
+
+      return false;
     } finally {
       setSending(false);
     }
   };
 
-  /* -----------------------------
-     Start Edit
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // START EDIT
+  // ----------------------------------------------------------
 
-  const handleStartEdit = (
-    message
-  ) => {
-    setEditingMessageId(
-      message.id
-    );
+  const handleStartEdit = (message) => {
+    if (!message?.id) return;
 
-    setEditingText(
-      message.text
-    );
+    setEditingMessageId(message.id);
+    setInputText(message.text || "");
+    setShowEmojiPicker(false);
   };
 
-  /* -----------------------------
-     Cancel Edit
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // CANCEL EDIT
+  // ----------------------------------------------------------
 
   const handleCancelEdit = () => {
     setEditingMessageId(null);
-    setEditingText("");
+    setInputText("");
+    setShowEmojiPicker(false);
   };
 
-  /* -----------------------------
-     Update Group Message
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // DELETE MESSAGE
+  // ----------------------------------------------------------
 
-  const handleUpdateMessage = async (
-    messageId
-  ) => {
-    const trimmedText =
-      editingText.trim();
+  const handleDeleteMessage = async (messageId) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this message?"
+    );
 
-    if (!trimmedText) {
-      return;
-    }
+    if (!confirmed) return;
 
     if (!token) {
-      alert(
-        "Your session has expired. Please login again."
-      );
-
+      alert("Your session has expired. Please login again.");
       return;
     }
 
     try {
-      setUpdatingMessage(true);
+      setDeletingMessageId(messageId);
 
-      const response =
-        await fetch(
-          `${API_URL}/group/${messageId}`,
-          {
-            method: "PUT",
+      const isPrivateChat = activeTab === "admin";
 
-            headers: {
-              "Content-Type":
-                "application/json",
+      const endpoint = isPrivateChat
+        ? `${API_URL}/private/${messageId}`
+        : `${API_URL}/group/${messageId}`;
 
-              Authorization:
-                `Bearer ${token}`,
-            },
+      const response = await fetch(endpoint, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-            body: JSON.stringify({
-              message:
-                trimmedText,
-            }),
-          }
-        );
-
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data.message ||
-            "Failed to update message"
+          data.message || "Failed to delete message"
         );
       }
 
-      setMessages((prev) =>
-        prev.map((message) =>
-          message.id === messageId
-            ? {
-                ...message,
-                text:
-                  trimmedText,
-              }
-            : message
-        )
-      );
-
-      handleCancelEdit();
-    } catch (error) {
-      console.error(
-        "Update message error:",
-        error
-      );
-
-      alert(
-        error.message ||
-          "Failed to update message."
-      );
-    } finally {
-      setUpdatingMessage(false);
-    }
-  };
-
-  /* -----------------------------
-     Delete Group Message
-  ----------------------------- */
-
-  const handleDeleteMessage = async (
-    messageId
-  ) => {
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to delete this message?"
-      );
-
-    if (!confirmed) {
-      return;
-    }
-
-    if (!token) {
-      alert(
-        "Your session has expired. Please login again."
-      );
-
-      return;
-    }
-
-    try {
-      setDeletingMessageId(
-        messageId
-      );
-
-      const response =
-        await fetch(
-          `${API_URL}/group/${messageId}`,
-          {
-            method: "DELETE",
-
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
+      if (isPrivateChat) {
+        setAdminMessages((previous) =>
+          previous.filter(
+            (message) => String(message.id) !== String(messageId)
+          )
         );
-
-      const data =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            "Failed to delete message"
+      } else {
+        setMessages((previous) =>
+          previous.filter(
+            (message) => String(message.id) !== String(messageId)
+          )
         );
       }
 
-      setMessages((prev) =>
-        prev.filter(
-          (message) =>
-            message.id !== messageId
-        )
-      );
+      if (String(editingMessageId) === String(messageId)) {
+        handleCancelEdit();
+      }
     } catch (error) {
-      console.error(
-        "Delete message error:",
-        error
-      );
+      console.error("Delete message error:", error);
 
-      alert(
-        error.message ||
-          "Failed to delete message."
-      );
+      alert(error.message || "Failed to delete message.");
     } finally {
       setDeletingMessageId(null);
     }
   };
 
-  /* -----------------------------
-     Emoji
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // EMOJI
+  // ----------------------------------------------------------
 
-  const addEmoji = (
-    emoji
-  ) => {
-    setInputText(
-      (prev) =>
-        `${prev}${emoji}`
-    );
-
+  const addEmoji = (emoji) => {
+    setInputText((previous) => `${previous}${emoji}`);
     setShowEmojiPicker(false);
   };
 
-  /* -----------------------------
-     Current Messages
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // CURRENT CHAT DATA
+  // ----------------------------------------------------------
 
   const currentMessages =
-    activeTab === "group"
-      ? messages
-      : adminMessages;
+    activeTab === "group" ? messages : adminMessages;
 
   const currentLoading =
-    activeTab === "group"
-      ? loading
-      : adminLoading;
+    activeTab === "group" ? loading : adminLoading;
 
-  /* -----------------------------
-     JSX
-  ----------------------------- */
+  // ----------------------------------------------------------
+  // JSX
+  // ----------------------------------------------------------
 
   return (
     <div className="cxchat-chat-app">
-
-      {/* Ambient Background */}
-
+      {/* Ambient background */}
       <div className="cxchat-ambient-background">
         <div className="cxchat-ambient-light cxchat-ambient-light-one" />
-
         <div className="cxchat-ambient-light cxchat-ambient-light-two" />
-
         <div className="cxchat-ambient-light cxchat-ambient-light-three" />
       </div>
 
-      {/* Mobile Backdrop */}
-
+      {/* Mobile backdrop */}
       {mobileMenuOpen && (
         <div
           className="cxchat-mobile-backdrop"
-          onClick={() =>
-            setMobileMenuOpen(false)
-          }
+          onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-
       <ChatSidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        mobileMenuOpen={
-          mobileMenuOpen
-        }
-        setMobileMenuOpen={
-          setMobileMenuOpen
-        }
-        currentUser={
-          currentUser
-        }
+        setActiveTab={(tab) => {
+          handleCancelEdit();
+          setActiveTab(tab);
+        }}
+        mobileMenuOpen={mobileMenuOpen}
+        setMobileMenuOpen={setMobileMenuOpen}
+        currentUser={currentUser}
       />
 
-      {/* Main Chat */}
-
+      {/* Main chat */}
       <main className="cxchat-chat-main">
-
         <div className="cxchat-chat-card">
-
           {/* Header */}
-
           <ChatHeader
             activeTab={activeTab}
-            setMobileMenuOpen={
-              setMobileMenuOpen
-            }
+            setMobileMenuOpen={setMobileMenuOpen}
           />
 
           {/* Messages */}
-
           <ChatMessages
-            messages={
-              currentMessages
-            }
-
-            loading={
-              currentLoading
-            }
-
-            activeTab={
-              activeTab
-            }
-
-            currentUser={
-              currentUser
-            }
-
-            editingMessageId={
-              editingMessageId
-            }
-
-            editingText={
-              editingText
-            }
-
-            setEditingText={
-              setEditingText
-            }
-
-            handleStartEdit={
-              handleStartEdit
-            }
-
-            handleCancelEdit={
-              handleCancelEdit
-            }
-
-            handleUpdateMessage={
-              handleUpdateMessage
-            }
-
-            updatingMessage={
-              updatingMessage
-            }
-
-            handleDeleteMessage={
-              handleDeleteMessage
-            }
-
-            deletingMessageId={
-              deletingMessageId
-            }
-
-            messagesEndRef={
-              messagesEndRef
-            }
+            messages={currentMessages}
+            loading={currentLoading}
+            activeTab={activeTab}
+            currentUser={currentUser}
+            editingMessageId={editingMessageId}
+            handleStartEdit={handleStartEdit}
+            handleCancelEdit={handleCancelEdit}
+            handleDeleteMessage={handleDeleteMessage}
+            deletingMessageId={deletingMessageId}
+            messagesEndRef={messagesEndRef}
           />
 
           {/* Input */}
-
           <ChatInput
-            inputText={
-              inputText
-            }
-
-            setInputText={
-              setInputText
-            }
-
-            showEmojiPicker={
-              showEmojiPicker
-            }
-
-            setShowEmojiPicker={
-              setShowEmojiPicker
-            }
-
-            addEmoji={
-              addEmoji
-            }
-
-            handleSendMessage={
-              handleSendMessage
-            }
-
-            sending={
-              sending
-            }
+            inputText={inputText}
+            setInputText={setInputText}
+            showEmojiPicker={showEmojiPicker}
+            setShowEmojiPicker={setShowEmojiPicker}
+            addEmoji={addEmoji}
+            handleSendMessage={handleSendMessage}
+            sending={sending}
+            editingMessageId={editingMessageId}
+            onCancelEdit={handleCancelEdit}
           />
-
         </div>
       </main>
     </div>

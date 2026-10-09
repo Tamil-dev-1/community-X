@@ -1,34 +1,161 @@
-import React from "react";
+
+import React, { useEffect, useRef, useState } from "react";
+import "./ChatMessages.css";
+
 import {
   Crown,
   CheckCheck,
+  MoreVertical,
   Pencil,
   Trash2,
-  Check,
-  XCircle,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 
+const API_BASE_URL = "http://localhost:5000";
+
+const DEFAULT_AVATAR =
+  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80";
+
 const ChatMessages = ({
-  messages,
+  messages = [],
   loading,
   activeTab,
   currentUser,
-
   editingMessageId,
-  editingText,
-  setEditingText,
-
   handleStartEdit,
   handleCancelEdit,
-  handleUpdateMessage,
-
-  updatingMessage,
-
   handleDeleteMessage,
   deletingMessageId,
-
   messagesEndRef,
 }) => {
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const menuRef = useRef(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target)
+      ) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+    };
+  }, []);
+
+  // Close menu when switching tabs
+  useEffect(() => {
+    setOpenMenuId(null);
+  }, [activeTab]);
+
+  // Date helpers
+  const getDateKey = (dateValue) => {
+    if (!dateValue) return "";
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) return "";
+
+    return `${date.getFullYear()}-${String(
+      date.getMonth() + 1
+    ).padStart(2, "0")}-${String(
+      date.getDate()
+    ).padStart(2, "0")}`;
+  };
+
+  const isToday = (dateValue) => {
+    if (!dateValue) return false;
+
+    const date = new Date(dateValue);
+    const today = new Date();
+
+    if (Number.isNaN(date.getTime())) return false;
+
+    return (
+      date.getFullYear() === today.getFullYear() &&
+      date.getMonth() === today.getMonth() &&
+      date.getDate() === today.getDate()
+    );
+  };
+
+  const isYesterday = (dateValue) => {
+    if (!dateValue) return false;
+
+    const date = new Date(dateValue);
+    const yesterday = new Date();
+
+    if (Number.isNaN(date.getTime())) return false;
+
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    return (
+      date.getFullYear() === yesterday.getFullYear() &&
+      date.getMonth() === yesterday.getMonth() &&
+      date.getDate() === yesterday.getDate()
+    );
+  };
+
+  const formatDateSeparator = (dateValue) => {
+    if (!dateValue) return "";
+
+    if (isToday(dateValue)) return "Today";
+    if (isYesterday(dateValue)) return "Yesterday";
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) return "";
+
+    return date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  // Check whether this message belongs to the current user
+  const isOwnMessage = (message) => {
+    if (!message || !currentUser) return false;
+
+    const messageWallet =
+      message.senderWallet?.toLowerCase?.() || "";
+
+    const userWallet =
+      currentUser.walletAddress?.toLowerCase?.() || "";
+
+    return Boolean(
+      messageWallet &&
+      userWallet &&
+      messageWallet === userWallet
+    );
+  };
+
+  // Support backend attachment URLs such as /uploads/document.pdf
+  // and absolute URLs if the backend returns them.
+  const getAttachmentUrl = (attachment) => {
+    if (!attachment?.url) return "";
+
+    if (/^https?:\/\//i.test(attachment.url)) {
+      return attachment.url;
+    }
+
+    return `${API_BASE_URL}${
+      attachment.url.startsWith("/")
+        ? attachment.url
+        : `/${attachment.url}`
+    }`;
+  };
+
+  // Loading state
   if (loading) {
     return (
       <div className="cxchat-messages-container">
@@ -40,6 +167,7 @@ const ChatMessages = ({
     );
   }
 
+  // Empty state
   if (!messages.length) {
     return (
       <div className="cxchat-messages-container">
@@ -66,191 +194,258 @@ const ChatMessages = ({
     );
   }
 
+  // Message list
   return (
     <div className="cxchat-messages-container">
       <div className="cxchat-messages-list">
-        {messages.map((message) => {
-          const isSelf =
-            message.senderWallet &&
-            currentUser.walletAddress &&
-            message.senderWallet.toLowerCase() ===
-              currentUser.walletAddress.toLowerCase();
+        {messages.map((message, index) => {
+          const isSelf = isOwnMessage(message);
+          const isAdminMessage = message.isAdmin === true;
 
           const isEditing =
             editingMessageId === message.id;
 
+          const attachment = message.attachment;
+          const attachmentUrl = getAttachmentUrl(attachment);
+
+          const currentDateKey = getDateKey(
+            message.createdAt
+          );
+
+          const previousDateKey =
+            index > 0
+              ? getDateKey(messages[index - 1]?.createdAt)
+              : "";
+
+          const showDateSeparator =
+            index === 0 ||
+            currentDateKey !== previousDateKey;
+
           return (
-            <div
-              key={message.id}
-              className={`cxchat-message-row ${
-                isSelf
-                  ? "cxchat-message-row-self"
-                  : "cxchat-message-row-other"
-              }`}
-            >
-              {/* Avatar */}
-              <div className="cxchat-message-avatar-wrapper">
-                <img
-                  src={
-                    message.avatar ||
-                    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80"
-                  }
-                  alt={message.senderName}
-                  className="cxchat-message-avatar"
-                  onError={(e) => {
-                    e.currentTarget.src =
-                      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80";
-                  }}
-                />
-
-                {message.isAdmin && (
-                  <span className="cxchat-message-admin-crown">
-                    <Crown size={9} />
+            <React.Fragment key={message.id || index}>
+              {/* Date separator */}
+              {showDateSeparator && message.createdAt && (
+                <div className="cxchat-date-separator">
+                  <span>
+                    {formatDateSeparator(message.createdAt)}
                   </span>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Message Wrapper */}
+              {/* Message row */}
               <div
-                className={`cxchat-msg-wrapper ${
+                className={`cxchat-message-row ${
                   isSelf
-                    ? "cxchat-msg-wrapper-self"
-                    : "cxchat-msg-wrapper-other"
+                    ? "cxchat-message-row-self"
+                    : "cxchat-message-row-other"
                 }`}
               >
-                {/* Sender Name */}
-                <div
-                  className={`cxchat-sender-name ${
-                    isSelf
-                      ? "cxchat-sender-name-self"
-                      : "cxchat-sender-name-other"
-                  }`}
-                >
-                  <span>{message.senderName}</span>
+                {/* Avatar */}
+                <div className="cxchat-message-avatar-wrapper">
+                  <img
+                    src={message.avatar || DEFAULT_AVATAR}
+                    alt={message.senderName || "Member"}
+                    className="cxchat-message-avatar"
+                    onError={(event) => {
+                      event.currentTarget.onerror = null;
+                      event.currentTarget.src = DEFAULT_AVATAR;
+                    }}
+                  />
 
-                  {message.isAdmin && (
-                    <span className="cxchat-admin-label">
-                      ADMIN
+                  {isAdminMessage && (
+                    <span className="cxchat-message-admin-crown">
+                      <Crown size={9} />
                     </span>
                   )}
                 </div>
 
-                {/* Message Bubble */}
+                {/* Message wrapper */}
                 <div
-                  className={`cxchat-message-bubble ${
+                  className={`cxchat-msg-wrapper ${
                     isSelf
-                      ? "cxchat-message-bubble-self"
-                      : "cxchat-message-bubble-other"
+                      ? "cxchat-msg-wrapper-self"
+                      : "cxchat-msg-wrapper-other"
                   }`}
                 >
-                  {isEditing ? (
-                    <div className="cxchat-edit-form">
-                      <input
-                        type="text"
-                        value={editingText}
-                        onChange={(e) =>
-                          setEditingText(e.target.value)
-                        }
-                        className="cxchat-edit-input"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            handleUpdateMessage(message.id);
-                          }
+                  {/* Sender name */}
+                  <div
+                    className={`cxchat-sender-name ${
+                      isSelf
+                        ? "cxchat-sender-name-self"
+                        : "cxchat-sender-name-other"
+                    }`}
+                  >
+                    <span>
+                      {message.senderName || "Community Member"}
+                    </span>
 
-                          if (e.key === "Escape") {
-                            handleCancelEdit();
-                          }
-                        }}
-                      />
+                    {isAdminMessage && (
+                      <span className="cxchat-admin-label">
+                        ADMIN
+                      </span>
+                    )}
+                  </div>
 
-                      <div className="cxchat-edit-actions">
-                        <button
-                          type="button"
-                          className="cxchat-edit-action cxchat-edit-cancel"
-                          onClick={handleCancelEdit}
-                          disabled={updatingMessage}
-                        >
-                          <XCircle size={14} />
-                          Cancel
-                        </button>
-
-                        <button
-                          type="button"
-                          className="cxchat-edit-action cxchat-edit-save"
-                          onClick={() =>
-                            handleUpdateMessage(message.id)
-                          }
-                          disabled={updatingMessage}
-                        >
-                          <Check size={14} />
-                          {updatingMessage
-                            ? "Saving..."
-                            : "Save"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
+                  {/* Message bubble */}
+                  <div
+                    className={`cxchat-message-bubble ${
+                      isSelf
+                        ? "cxchat-message-bubble-self"
+                        : "cxchat-message-bubble-other"
+                    } ${
+                      isEditing
+                        ? "cxchat-message-bubble-editing"
+                        : ""
+                    }`}
+                  >
+                    {/* Message text */}
+                    {message.text && (
                       <div className="cxchat-message-text">
                         {message.text}
                       </div>
+                    )}
 
-                      <div className="cxchat-message-meta">
-                        <span className="cxchat-message-time">
-                          {message.time}
+                    {/* File attachment */}
+                    {attachmentUrl && (
+                      <a
+                        className="cxchat-attachment-link"
+                        href={attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Open ${
+                          attachment.originalName || "attachment"
+                        }`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                        }}
+                      >
+                        <FileText
+                          size={19}
+                          aria-hidden="true"
+                        />
+
+                        <span>
+                          {attachment.originalName ||
+                            "Open attachment"}
                         </span>
 
-                        {isSelf && (
-                          <CheckCheck
-                            size={15}
-                            className="cxchat-message-check"
-                          />
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
+                        <ExternalLink
+                          size={14}
+                          aria-hidden="true"
+                        />
+                      </a>
+                    )}
 
-                {/* Message Actions */}
-                {isSelf &&
-                  activeTab === "group" &&
-                  !isEditing && (
-                    <div className="cxchat-message-actions">
-                      <button
-                        type="button"
-                        className="cxchat-message-action-btn cxchat-message-action-edit"
-                        onClick={() =>
-                          handleStartEdit(message)
-                        }
-                        disabled={
-                          deletingMessageId === message.id
-                        }
-                        title="Edit message"
-                      >
-                        <Pencil size={13} />
-                      </button>
+                    {/* Message metadata */}
+                    <div className="cxchat-message-meta">
+                      <span className="cxchat-message-time">
+                        {message.time}
+                      </span>
 
-                      <button
-                        type="button"
-                        className="cxchat-message-action-btn cxchat-message-action-delete"
-                        onClick={() =>
-                          handleDeleteMessage(message.id)
-                        }
-                        disabled={
-                          deletingMessageId === message.id
-                        }
-                        title="Delete message"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {message.isEdited && (
+                        <span className="cxchat-edited-label">
+                          (edited)
+                        </span>
+                      )}
+
+                      {isSelf && (
+                        <CheckCheck
+                          size={15}
+                          className="cxchat-message-check"
+                        />
+                      )}
+                    </div>
+
+                    {/* Three-dot menu: own non-admin messages only */}
+                    {isSelf &&
+                      !isAdminMessage &&
+                      !isEditing && (
+                        <div
+                          className="cxchat-message-menu-wrapper"
+                          ref={
+                            openMenuId === message.id
+                              ? menuRef
+                              : null
+                          }
+                        >
+                          <button
+                            type="button"
+                            className="cxchat-message-menu-button"
+                            title="Message options"
+                            aria-label="Message options"
+                            aria-expanded={
+                              openMenuId === message.id
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+
+                              setOpenMenuId((currentId) =>
+                                currentId === message.id
+                                  ? null
+                                  : message.id
+                              );
+                            }}
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+
+                          {openMenuId === message.id && (
+                            <div className="cxchat-message-menu">
+                              {/* Edit */}
+                              <button
+                                type="button"
+                                className="cxchat-message-menu-item"
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  handleStartEdit(message);
+                                }}
+                                disabled={
+                                  deletingMessageId === message.id
+                                }
+                              >
+                                <Pencil size={14} />
+                                <span>Edit</span>
+                              </button>
+
+                              {/* Delete */}
+                              <button
+                                type="button"
+                                className="cxchat-message-menu-item cxchat-message-menu-delete"
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  handleDeleteMessage(message.id);
+                                }}
+                                disabled={
+                                  deletingMessageId === message.id
+                                }
+                              >
+                                {deletingMessageId === message.id ? (
+                                  <span className="cxchat-menu-spinner" />
+                                ) : (
+                                  <Trash2 size={14} />
+                                )}
+
+                                <span>Delete</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                  </div>
+
+                  {/* Editing status */}
+                  {isEditing && (
+                    <div className="cxchat-editing-message-hint">
+                      Editing this message
                     </div>
                   )}
+                </div>
               </div>
-            </div>
+            </React.Fragment>
           );
         })}
 
+        {/* Auto-scroll target */}
         <div ref={messagesEndRef} />
       </div>
     </div>

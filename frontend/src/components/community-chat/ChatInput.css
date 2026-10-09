@@ -1,0 +1,78 @@
+
+/* Selected document preview */
+.cxchat-attachment-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.cxchat-attachment-file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #c6ff00;
+}
+
+.cxchat-attachment-file-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+
+.cxchat-attachment-file-name {
+  overflow: hidden;
+  color: #f5f5f5;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cxchat-attachment-file-size {
+  color: #a0a0a0;
+  font-size: 11px;
+}
+
+.cxchat-attachment-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  color: #b8b8b8;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cxchat-attachment-remove:hover {
+  color: #ff6b81;
+  background: rgba(255, 107, 129, 0.12);
+}
+
+.cxchat-attachment-remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Error message */
+
+
+.cxchat-attachment-error {
+  margin: 6px 12px;
+  color: #ff7777;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
