@@ -535,7 +535,7 @@
   min-width: 0;
   min-height: 0;
 
-  height: 100dvh;
+  height: 100%;
 
   /* padding: 14px; */
 
@@ -722,7 +722,7 @@
 .cxchat-messages-container {
   position: relative;
 
-  flex: 1;
+  flex: 1 1 0;
 
   min-height: 0;
 
@@ -737,6 +737,8 @@
   scrollbar-color:
     rgba(190, 3, 120, 0.35)
     transparent;
+    overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .cxchat-messages-container::-webkit-scrollbar {
@@ -1699,5 +1701,333 @@
     scroll-behavior: auto !important;
 
     transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* Announcement navigation item */
+.cxchat-nav-item-announcements .cxchat-nav-icon {
+  color: #f9a8d4;
+}
+
+.cxchat-nav-item-announcements.cxchat-nav-item-active {
+  border-color: rgba(236, 72, 153, 0.4);
+  background: rgba(236, 72, 153, 0.12);
+}
+
+.cxchat-announcement-new-dot,
+.cxchat-header-announcement-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #f472b6;
+  box-shadow: 0 0 10px rgba(244, 114, 182, 0.6);
+}
+
+.cxchat-header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cxchat-header-announcement-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 9px 12px;
+  border: 1px solid rgba(244, 114, 182, 0.25);
+  border-radius: 11px;
+  color: #f9a8d4;
+  background: rgba(236, 72, 153, 0.07);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.cxchat-header-announcement-btn:hover,
+.cxchat-header-announcement-active {
+  border-color: rgba(244, 114, 182, 0.65);
+  background: rgba(236, 72, 153, 0.16);
+  box-shadow: 0 0 16px rgba(236, 72, 153, 0.08);
+}
+
+.cxchat-header-announcement-label {
+  white-space: nowrap;
+}
+
+.cxchat-header-announcement-count {
+  min-width: 18px;
+  padding: 2px 5px;
+  border-radius: 10px;
+  color: #fff;
+  background: #db2777;
+  font-size: 10px;
+  text-align: center;
+}
+
+.cxchat-header-announcement-has-new {
+  border-color: rgba(244, 114, 182, 0.65);
+}
+
+.cxchat-header-icon-announcements {
+  color: #f9a8d4;
+}
+
+.cxchat-header-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.cxchat-header-status-online {
+  background: #34d399;
+}
+
+.cxchat-header-status-offline {
+  background: #71717a;
+}
+
+.cxchat-header-subtitle-divider {
+  opacity: 0.55;
+}
+
+@media (max-width: 600px) {
+  .cxchat-header-right {
+    gap: 8px;
+  }
+
+  .cxchat-header-announcement-btn {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    padding: 0;
+  }
+
+  .cxchat-header-announcement-label {
+    display: none;
+  }
+
+  .cxchat-access-badge {
+    gap: 5px;
+    padding: 8px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .cxchat-access-badge span {
+    display: none;
+  }
+}
+
+
+/* new feature css */
+
+/* ==========================================
+   COMMUNITY X ANNOUNCEMENTS
+========================================== */
+
+.cxchat-announcements {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: clamp(18px, 3vw, 32px);
+  color: #f4f4f5;
+}
+
+.cxchat-announcements-banner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: clamp(20px, 3vw, 32px);
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  border-radius: 18px;
+  background: linear-gradient(
+    135deg,
+    rgba(190, 24, 93, 0.18),
+    rgba(30, 41, 59, 0.55)
+  );
+}
+
+.cxchat-announcements-banner-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 54px;
+  height: 54px;
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  border-radius: 15px;
+  background: rgba(236, 72, 153, 0.12);
+  font-size: 25px;
+}
+
+.cxchat-announcements-eyebrow {
+  margin-bottom: 8px;
+  color: #f9a8d4;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+}
+
+.cxchat-announcements-banner h2 {
+  margin: 0 0 8px;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 700;
+}
+
+.cxchat-announcements-banner p {
+  margin: 0;
+  color: #a1a1aa;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.cxchat-announcements-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 28px 0 16px;
+}
+
+.cxchat-announcements-section-heading h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.cxchat-announcements-section-heading p {
+  margin: 0;
+  color: #a1a1aa;
+  font-size: 12px;
+}
+
+.cxchat-announcements-list {
+  display: grid;
+  gap: 14px;
+}
+
+.cxchat-announcement-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.55);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.cxchat-announcement-card:hover {
+  border-color: rgba(236, 72, 153, 0.35);
+  background: rgba(30, 41, 59, 0.65);
+}
+
+.cxchat-announcement-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(236, 72, 153, 0.1);
+  font-size: 19px;
+}
+
+.cxchat-announcement-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.cxchat-announcement-category {
+  display: inline-block;
+  margin-bottom: 9px;
+  color: #f9a8d4;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.cxchat-announcement-card h4 {
+  margin: 0 0 9px;
+  color: #f4f4f5;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.cxchat-announcement-card p {
+  margin: 0 0 13px;
+  color: #a1a1aa;
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.cxchat-announcement-date {
+  color: #71717a;
+  font-size: 11px;
+}
+
+.cxchat-announcements-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 24px 8px 8px;
+  color: #71717a;
+  font-size: 12px;
+}
+
+.cxchat-announcements-footer span {
+  color: #f9a8d4;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .cxchat-announcements {
+    padding: 16px;
+  }
+
+  .cxchat-announcements-banner {
+    align-items: flex-start;
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .cxchat-announcements-banner-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 20px;
+  }
+
+  .cxchat-announcements-banner p {
+    font-size: 12px;
+  }
+
+  .cxchat-announcement-card {
+    gap: 12px;
+    padding: 15px;
+  }
+
+  .cxchat-announcement-card-icon {
+    width: 36px;
+    height: 36px;
   }
 }

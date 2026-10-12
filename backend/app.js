@@ -10,6 +10,7 @@ import communityRoutes from "./routes/communityRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import authMiddleware from "./middleware/authMiddleware.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import announcementRoutes from "./routes/announcementRoutes.js";
 
 dotenv.config();
 
@@ -61,6 +62,9 @@ app.use("/api/community", communityRoutes);
 
 // Group and private messaging
 app.use("/api/messages", messageRoutes);
+
+// Announcements — published announcements for members
+app.use("/api/announcements", announcementRoutes);
 
 // ============================================================
 // TEST AUTHENTICATION

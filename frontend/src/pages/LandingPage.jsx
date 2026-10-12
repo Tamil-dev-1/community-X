@@ -328,9 +328,9 @@ export default function LandingPage() {
               </p>
 
               <div className="cx-hero-cta d-flex flex-wrap justify-content-center">
-                <a href="#how-it-works" className="cx-btn cx-btn-primary cx-btn-glow">
+                <Link to="/connect-wallet" className="cx-btn cx-btn-primary cx-btn-glow">
                   Connect wallet
-                </a>
+                </Link>
                 <a href="#features" className="cx-btn cx-btn-ghost">
                   See what&rsquo;s inside
                 </a>
@@ -425,9 +425,9 @@ export default function LandingPage() {
                   every role sees only what it&rsquo;s meant to. Security isn&rsquo;t a settings page here — it&rsquo;s how the
                   platform is built.
                 </p>
-                <a href="#join" className="cx-btn cx-btn-primary">
+                <Link to="/connect-wallet" className="cx-btn cx-btn-primary">
                   Connect your wallet
-                </a>
+                </Link>
               </div>
               <div className="col-12 col-lg-7">
                 <div className="row g-4">
@@ -451,9 +451,9 @@ export default function LandingPage() {
             <div className="cx-cta-card text-center mx-auto">
               <h2>Your community is waiting</h2>
               <p>Connect your wallet, complete a short verification, and you&rsquo;re in — group chat and direct admin access included.</p>
-              <a href="#join" className="cx-btn cx-btn-primary cx-btn-glow cx-btn-lg">
+              <Link to="/connect-wallet" className="cx-btn cx-btn-primary cx-btn-glow cx-btn-lg">
                 Connect wallet
-              </a>
+              </Link>
             </div>
           </div>
         </section>

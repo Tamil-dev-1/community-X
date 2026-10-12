@@ -3,15 +3,27 @@
    ========================================================= */
 
 /* Lock root dimensions to prevent page scrolling */
+
 html,
 body,
 #root {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
 }
+
+html,
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#root {
+  height: auto;
+  overflow: visible;
+}
+
 
 * {
   box-sizing: border-box;

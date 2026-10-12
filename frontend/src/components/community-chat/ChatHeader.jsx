@@ -1,4 +1,3 @@
-
 import React from "react";
 
 import {
@@ -6,15 +5,46 @@ import {
   Shield,
   Menu,
   Crown,
+  Bell,
 } from "lucide-react";
 
 const ChatHeader = ({
   activeTab,
   setMobileMenuOpen,
+  setActiveTab,
   isAdminOnline = false,
   adminStatusText = "Offline",
 }) => {
   const isGroup = activeTab === "group";
+  const isAnnouncements = activeTab === "announcements";
+
+  const headerTitle = isGroup
+    ? "Group Chat - Community X"
+    : isAnnouncements
+      ? "Community Announcements"
+      : "Admin Announcements";
+
+  const headerSubtitle = isGroup
+    ? "360 Members • Admin"
+    : isAnnouncements
+      ? "Official Community X Updates"
+      : "Official Community X Updates";
+
+  const handleAnnouncementClick = () => {
+    if (typeof setActiveTab === "function") {
+      setActiveTab("announcements");
+    }
+
+    if (typeof setMobileMenuOpen === "function") {
+      setMobileMenuOpen(false);
+    }
+  };
+
+  const headerIconClass = isGroup
+    ? "cxchat-chat-header-icon-group"
+    : isAnnouncements
+      ? "cxchat-chat-header-icon-announcements"
+      : "cxchat-chat-header-icon-admin";
 
   return (
     <header className="cxchat-chat-header">
@@ -22,7 +52,7 @@ const ChatHeader = ({
       <button
         type="button"
         className="cxchat-mobile-menu-button"
-        onClick={() => setMobileMenuOpen(true)}
+        onClick={() => setMobileMenuOpen?.(true)}
         aria-label="Open menu"
       >
         <Menu size={22} />
@@ -30,14 +60,12 @@ const ChatHeader = ({
 
       {/* Header Icon */}
       <div
-        className={`cxchat-chat-header-icon ${
-          isGroup
-            ? "cxchat-chat-header-icon-group"
-            : "cxchat-chat-header-icon-admin"
-        }`}
+        className={`cxchat-chat-header-icon ${headerIconClass}`}
       >
         {isGroup ? (
           <Users size={22} />
+        ) : isAnnouncements ? (
+          <Bell size={22} />
         ) : (
           <Shield size={22} />
         )}
@@ -46,19 +74,15 @@ const ChatHeader = ({
       {/* Header Information */}
       <div className="cxchat-chat-header-info">
         <div className="cxchat-chat-header-title">
-          {isGroup
-            ? "Group Chat - Community X"
-            : "Admin Announcements"}
+          {headerTitle}
         </div>
 
         <div className="cxchat-chat-header-subtitle">
-          {isGroup
-            ? "360 Members • Admin"
-            : "Official Community X Updates"}
+          {headerSubtitle}
         </div>
 
         {/* Admin Online / Offline Status */}
-        {!isGroup && (
+        {activeTab === "admin" && (
           <div
             className="cxchat-admin-header-status"
             aria-live="polite"
@@ -92,6 +116,20 @@ const ChatHeader = ({
         )}
       </div>
 
+      {/* Announcement Shortcut */}
+      {!isAnnouncements && (
+        <button
+          type="button"
+          className="cxchat-header-announcement-button"
+          onClick={handleAnnouncementClick}
+          aria-label="Open announcements"
+          title="Announcements"
+        >
+          <Bell size={18} />
+          <span>Announcements</span>
+        </button>
+      )}
+
       {/* Executive Badge */}
       <div className="cxchat-chat-header-badge">
         <Crown size={14} />
@@ -102,4 +140,3 @@ const ChatHeader = ({
 };
 
 export default ChatHeader;
-

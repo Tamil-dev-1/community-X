@@ -20,6 +20,15 @@ import {
   deleteAdminPrivateMessage,
 } from "../controllers/adminController.js";
 
+
+import {
+  getAdminAnnouncements,
+  createAnnouncement,
+  updateAnnouncement,
+  deleteAnnouncement,
+} from "../controllers/announcementController.js";
+
+
 import adminAuthMiddleware from "../middleware/adminAuthMiddleware.js";
 
 const router = express.Router();
@@ -112,5 +121,41 @@ router.delete(
   adminAuthMiddleware,
   deleteAdminPrivateMessage
 );
+
+
+
+/* ============================================================
+   ADMIN ANNOUNCEMENTS
+   All routes require admin authentication.
+   ============================================================ */
+
+// GET /api/admin/announcements
+router.get(
+  "/announcements",
+  adminAuthMiddleware,
+  getAdminAnnouncements
+);
+
+// POST /api/admin/announcements
+router.post(
+  "/announcements",
+  adminAuthMiddleware,
+  createAnnouncement
+);
+
+// PUT /api/admin/announcements/:id
+router.put(
+  "/announcements/:id",
+  adminAuthMiddleware,
+  updateAnnouncement
+);
+
+// DELETE /api/admin/announcements/:id
+router.delete(
+  "/announcements/:id",
+  adminAuthMiddleware,
+  deleteAnnouncement
+);
+
 
 export default router;
