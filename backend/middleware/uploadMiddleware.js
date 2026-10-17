@@ -87,15 +87,22 @@ const fileFilter = (req, file, cb) => {
 // MULTER CONFIGURATION
 // ============================================================
 
+
 const upload = multer({
   storage,
   fileFilter,
 
   limits: {
-    fileSize: 10 * 1024 * 1024, // Maximum 10 MB
+    fileSize: 10 * 1024 * 1024, // Maximum file size: 10 MB
     files: 1,
+    fields: 10, // Maximum number of non-file fields
+    fieldSize: 256 * 1024, // Maximum text field size: 256 KB
+    parts: 12, // Maximum total multipart parts
   },
 });
+
+
+
 
 export default upload;
 

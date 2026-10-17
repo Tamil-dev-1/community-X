@@ -19,10 +19,10 @@ const ChatHeader = ({
   const isAnnouncements = activeTab === "announcements";
 
   const headerTitle = isGroup
-    ? "Group Chat - Community X"
-    : isAnnouncements
-      ? "Community Announcements"
-      : "Admin Announcements";
+  ? "Group Chat - Community X"
+  : isAnnouncements
+    ? "Community Announcements"
+    : "Admin Messages";
 
   const headerSubtitle = isGroup
     ? "360 Members • Admin"

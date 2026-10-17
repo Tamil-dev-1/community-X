@@ -86,7 +86,7 @@ export const createCommunityProfile = async (req, res) => {
 export const checkCommunityProfile = async (req, res) => {
   try {
     // Wallet comes from verified JWT
-    const walletAddress = req.user.walletAddress;
+    const walletAddress = req.user?.walletAddress?.toLowerCase();
 
     if (!walletAddress) {
       return res.status(400).json({
@@ -96,7 +96,7 @@ export const checkCommunityProfile = async (req, res) => {
     }
 
     const user = await CommunityUser.findOne({
-      walletAddress: walletAddress.toLowerCase(),
+      walletAddress,
     });
 
     if (!user) {
@@ -107,16 +107,32 @@ export const checkCommunityProfile = async (req, res) => {
       });
     }
 
+    // Block banned members, including after refresh
+    if (user.isBanned) {
+      return res.status(403).json({
+        success: false,
+        code: "COMMUNITY_MEMBER_BANNED",
+        message: "Your Community X access has been suspended.",
+        reason: user.banReason || "No reason provided.",
+        user: {
+          walletAddress: user.walletAddress,
+          fullName: user.fullName,
+          username: user.username,
+          profileImage: user.profileImage,
+          isBanned: true,
+          banReason: user.banReason || "",
+          bannedAt: user.bannedAt || null,
+        },
+      });
+    }
+
     return res.status(200).json({
       success: true,
       exists: true,
       user,
     });
   } catch (error) {
-    console.error(
-      "Check Community Profile Error:",
-      error
-    );
+    console.error("Check Community Profile Error:", error);
 
     return res.status(500).json({
       success: false,
@@ -151,6 +167,81 @@ export const getCommunityMembers = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while fetching Community X members",
+    });
+  }
+};
+
+
+
+/**
+ * Update the authenticated member's profile photo.
+ * Route: PATCH /api/community/profile/photo
+ */
+export const updateCommunityProfilePhoto = async (req, res) => {
+  try {
+    const walletAddress = req.user?.walletAddress?.toLowerCase();
+    const { profileImage } = req.body;
+
+    if (!walletAddress) {
+      return res.status(401).json({
+        success: false,
+        message: "Authenticated wallet address is missing.",
+      });
+    }
+
+    if (typeof profileImage !== "string" || !profileImage.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "A profile image is required.",
+      });
+    }
+
+    // Accept an image URL or a Base64 image data URL.
+    const isHttpUrl = /^https?:\/\/\S+$/i.test(profileImage);
+    const isImageDataUrl =
+      /^data:image\/(jpeg|jpg|png|webp|gif);base64,[A-Za-z0-9+/]+=*$/i.test(
+        profileImage
+      );
+
+    if (!isHttpUrl && !isImageDataUrl) {
+      return res.status(400).json({
+        success: false,
+        message: "Provide a valid image URL or supported image file.",
+      });
+    }
+
+    // Prevent oversized Base64 images from being stored.
+    if (isImageDataUrl && profileImage.length > 3_000_000) {
+      return res.status(413).json({
+        success: false,
+        message: "Image is too large. Please use a smaller image.",
+      });
+    }
+
+    const user = await CommunityUser.findOneAndUpdate(
+      { walletAddress },
+      { $set: { profileImage: profileImage.trim() } },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Community X profile not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile photo updated successfully.",
+      user,
+    });
+  } catch (error) {
+    console.error("Update Community Profile Photo Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while updating profile photo.",
     });
   }
 };

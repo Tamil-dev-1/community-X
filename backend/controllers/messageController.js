@@ -1,5 +1,6 @@
 
 import Message from "../models/Message.js";
+import CommunityUser from "../models/CommunityUser.js";
 
 // ============================================================
 // HELPER: GET SOCKET.IO INSTANCE
@@ -41,6 +42,87 @@ const formatMessage = (message) => {
 };
 
 // ============================================================
+// HELPER: GET CURRENT MEMBER PROFILES
+// ============================================================
+
+const getCommunityProfiles = async (messages) => {
+  const wallets = [
+    ...new Set(
+      messages
+        .map((message) =>
+          String(message.senderWallet || "")
+            .toLowerCase()
+            .trim()
+        )
+        .filter(Boolean)
+    ),
+  ];
+
+  if (!wallets.length) {
+    return new Map();
+  }
+
+  const members = await CommunityUser.find({
+    walletAddress: { $in: wallets },
+  })
+    .select("walletAddress fullName username profileImage")
+    .lean();
+
+  return new Map(
+    members.map((member) => [
+      member.walletAddress.toLowerCase(),
+      member,
+    ])
+  );
+};
+
+// ============================================================
+// HELPER: ADD CURRENT PROFILE PHOTOS TO MESSAGES
+// ============================================================
+
+const formatMessagesWithProfiles = async (messages) => {
+  const profiles = await getCommunityProfiles(messages);
+
+  return messages.map((message) => {
+    const formatted = formatMessage(message);
+
+    const wallet = String(
+      formatted.senderWallet || ""
+    )
+      .toLowerCase()
+      .trim();
+
+    const profile = profiles.get(wallet);
+
+    // Admin messages or messages without a member profile
+    // retain their existing sender information.
+    if (!profile) {
+      return formatted;
+    }
+
+    return {
+      ...formatted,
+      senderName: profile.fullName || formatted.senderName,
+      senderAvatar: profile.profileImage || "",
+    };
+  });
+};
+
+// ============================================================
+// HELPER: GET AUTHENTICATED MEMBER PROFILE
+// ============================================================
+
+const getAuthenticatedMemberProfile = async (walletAddress) => {
+  if (!walletAddress) {
+    return null;
+  }
+
+  return CommunityUser.findOne({
+    walletAddress: walletAddress.toLowerCase(),
+  }).select("walletAddress fullName username profileImage isBanned");
+};
+
+// ============================================================
 // 1. GET GROUP MESSAGES
 // GET /api/messages/group
 // ============================================================
@@ -51,9 +133,12 @@ export const getGroupMessages = async (req, res) => {
       chatType: "GROUP",
     }).sort({ createdAt: 1 });
 
+    const formattedMessages =
+      await formatMessagesWithProfiles(messages);
+
     return res.status(200).json({
       success: true,
-      messages: messages.map(formatMessage),
+      messages: formattedMessages,
     });
   } catch (error) {
     console.error("Get group messages error:", error);
@@ -74,11 +159,7 @@ export const createGroupMessage = async (req, res) => {
   try {
     const senderWallet = req.user?.walletAddress;
 
-    const {
-      senderName,
-      senderAvatar,
-      message,
-    } = req.body;
+    const { message } = req.body;
 
     const text =
       typeof message === "string" ? message.trim() : "";
@@ -92,10 +173,23 @@ export const createGroupMessage = async (req, res) => {
       });
     }
 
-    if (!senderName?.trim()) {
-      return res.status(400).json({
+    // Always retrieve the sender's profile from MongoDB.
+    // Do not trust the avatar or name supplied by the frontend.
+    const profile = await getAuthenticatedMemberProfile(
+      senderWallet
+    );
+
+    if (!profile) {
+      return res.status(404).json({
         success: false,
-        message: "Sender name is required",
+        message: "Community X profile not found",
+      });
+    }
+
+    if (profile.isBanned) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account is banned from the community",
       });
     }
 
@@ -107,16 +201,23 @@ export const createGroupMessage = async (req, res) => {
     }
 
     const newMessage = await Message.create({
-      senderWallet: senderWallet.toLowerCase(),
-      senderName: senderName.trim(),
-      senderAvatar: senderAvatar || "",
+      senderWallet: profile.walletAddress,
+      senderName: profile.fullName,
+      senderAvatar: "",
       message: text,
       chatType: "GROUP",
       attachment,
       isEdited: false,
     });
 
-    const responseMessage = formatMessage(newMessage);
+    // Return the actual profile photo immediately.
+    // The database lookup also supplies the photo on future reads.
+    const responseMessage = {
+      ...formatMessage(newMessage),
+      senderName: profile.fullName,
+      senderAvatar: profile.profileImage || "",
+    };
+
     const io = getIO(req);
 
     if (io) {
@@ -321,9 +422,12 @@ export const getPrivateMessages = async (req, res) => {
       ],
     }).sort({ createdAt: 1 });
 
+    const formattedMessages =
+      await formatMessagesWithProfiles(messages);
+
     return res.status(200).json({
       success: true,
-      messages: messages.map(formatMessage),
+      messages: formattedMessages,
     });
   } catch (error) {
     console.error("Get private messages error:", error);
@@ -345,11 +449,7 @@ export const createPrivateMessage = async (req, res) => {
     const senderWallet = req.user?.walletAddress;
     const targetWallet = req.params.wallet;
 
-    const {
-      senderName,
-      senderAvatar,
-      message,
-    } = req.body;
+    const { message } = req.body;
 
     const text =
       typeof message === "string" ? message.trim() : "";
@@ -370,10 +470,22 @@ export const createPrivateMessage = async (req, res) => {
       });
     }
 
-    if (!senderName?.trim()) {
-      return res.status(400).json({
+    // Always retrieve the authenticated sender's real profile.
+    const profile = await getAuthenticatedMemberProfile(
+      senderWallet
+    );
+
+    if (!profile) {
+      return res.status(404).json({
         success: false,
-        message: "Sender name is required",
+        message: "Community X profile not found",
+      });
+    }
+
+    if (profile.isBanned) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account is banned from the community",
       });
     }
 
@@ -385,9 +497,9 @@ export const createPrivateMessage = async (req, res) => {
     }
 
     const newMessage = await Message.create({
-      senderWallet: senderWallet.toLowerCase(),
-      senderName: senderName.trim(),
-      senderAvatar: senderAvatar || "",
+      senderWallet: profile.walletAddress,
+      senderName: profile.fullName,
+      senderAvatar: "",
       message: text,
       chatType: "PRIVATE",
       receiverWallet: targetWallet.toLowerCase(),
@@ -395,12 +507,17 @@ export const createPrivateMessage = async (req, res) => {
       isEdited: false,
     });
 
-    const responseMessage = formatMessage(newMessage);
+    const responseMessage = {
+      ...formatMessage(newMessage),
+      senderName: profile.fullName,
+      senderAvatar: profile.profileImage || "",
+    };
+
     const io = getIO(req);
 
     if (io) {
-      // Notify both sender and receiver wallet rooms.
-      io.to(`wallet:${senderWallet.toLowerCase()}`).emit(
+      // Notify sender and receiver wallet rooms.
+      io.to(`wallet:${profile.walletAddress}`).emit(
         "new-private-message",
         responseMessage
       );
@@ -485,17 +602,15 @@ export const updatePrivateMessage = async (req, res) => {
     const io = getIO(req);
 
     if (io) {
-      io.to(`wallet:${existingMessage.senderWallet.toLowerCase()}`).emit(
-        "private-message-updated",
-        responseMessage
-      );
+      io.to(
+        `wallet:${existingMessage.senderWallet.toLowerCase()}`
+      ).emit("private-message-updated", responseMessage);
 
-      io.to(`wallet:${existingMessage.receiverWallet.toLowerCase()}`).emit(
-        "private-message-updated",
-        responseMessage
-      );
+      io.to(
+        `wallet:${existingMessage.receiverWallet.toLowerCase()}`
+      ).emit("private-message-updated", responseMessage);
 
-      // Compatibility event if your frontend already listens for this name.
+      // Compatibility event for existing frontend listeners.
       io.emit("message-updated", responseMessage);
     }
 
@@ -565,15 +680,13 @@ export const deletePrivateMessage = async (req, res) => {
         receiverWallet: existingMessage.receiverWallet,
       };
 
-      io.to(`wallet:${existingMessage.senderWallet.toLowerCase()}`).emit(
-        "private-message-deleted",
-        payload
-      );
+      io.to(
+        `wallet:${existingMessage.senderWallet.toLowerCase()}`
+      ).emit("private-message-deleted", payload);
 
-      io.to(`wallet:${existingMessage.receiverWallet.toLowerCase()}`).emit(
-        "private-message-deleted",
-        payload
-      );
+      io.to(
+        `wallet:${existingMessage.receiverWallet.toLowerCase()}`
+      ).emit("private-message-deleted", payload);
 
       io.emit("message-deleted", payload);
     }
@@ -592,4 +705,3 @@ export const deletePrivateMessage = async (req, res) => {
     });
   }
 };
-

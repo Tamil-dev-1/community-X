@@ -1,8 +1,11 @@
+
 import React from "react";
 import "./ChatSidebar.css";
 
 import {
+  Home,
   Users,
+  MessageCircle,
   Megaphone,
   Crown,
   X,
@@ -24,7 +27,6 @@ const ChatSidebar = ({
   announcementUnreadCount = 0,
   onClearUnread,
 }) => {
-  // Switch channels without changing the existing sidebar layout.
   const handleTabChange = (tab) => {
     if (typeof setActiveTab === "function") {
       setActiveTab(tab);
@@ -39,11 +41,8 @@ const ChatSidebar = ({
     }
   };
 
-  // Prevent invalid unread counts.
-  const getUnreadCount = (count) => {
-    const value = Number(count) || 0;
-    return Math.max(0, value);
-  };
+  const getUnreadCount = (count) =>
+    Math.max(0, Number(count) || 0);
 
   const groupUnread = getUnreadCount(groupUnreadCount);
   const adminUnread = getUnreadCount(adminUnreadCount);
@@ -76,6 +75,37 @@ const ChatSidebar = ({
         ? "cxchat-nav-item-active"
         : "cxchat-nav-item-inactive"
     }`;
+
+  const renderNavItem = ({
+    tab,
+    label,
+    Icon,
+    unreadCount,
+    unreadLabel,
+  }) => (
+    <button
+      key={tab}
+      type="button"
+      className={getNavItemClass(tab)}
+      onClick={() => handleTabChange(tab)}
+      aria-current={activeTab === tab ? "page" : undefined}
+    >
+      <span className="cxchat-nav-item-left">
+        <span className="cxchat-nav-icon">
+          <Icon size={18} />
+        </span>
+
+        <span className="cxchat-nav-text">{label}</span>
+      </span>
+
+      <span className="cxchat-nav-item-right">
+        {unreadCount !== undefined &&
+          renderUnreadBadge(unreadCount, unreadLabel)}
+
+        {renderActiveDot(tab)}
+      </span>
+    </button>
+  );
 
   return (
     <aside
@@ -113,96 +143,46 @@ const ChatSidebar = ({
         </button>
       </div>
 
-      {/* Channels */}
+      {/* Navigation */}
       <div className="cxchat-sidebar-content">
         <div className="cxchat-sidebar-section-label">
-          CHANNELS
+          WORKSPACE
         </div>
 
         <nav className="cxchat-sidebar-nav">
-          {/* Group Chat */}
-          <button
-            type="button"
-            className={getNavItemClass("group")}
-            onClick={() => handleTabChange("group")}
-            aria-current={
-              activeTab === "group" ? "page" : undefined
-            }
-          >
-            <span className="cxchat-nav-item-left">
-              <span className="cxchat-nav-icon">
-                <Users size={18} />
-              </span>
+          {renderNavItem({
+            tab: "welcome",
+            label: "Welcome",
+            Icon: Home,
+          })}
 
-              <span className="cxchat-nav-text">
-                Group Chat
-              </span>
-            </span>
+          {renderNavItem({
+            tab: "group",
+            label: "Group Chat",
+            Icon: Users,
+            unreadCount: groupUnread,
+            unreadLabel: "group messages",
+          })}
 
-            <span className="cxchat-nav-item-right">
-              {renderUnreadBadge(groupUnread, "group messages")}
-              {renderActiveDot("group")}
-            </span>
-          </button>
+          {renderNavItem({
+            tab: "admin",
+            label: "Admin Messages",
+            Icon: MessageCircle,
+            unreadCount: adminUnread,
+            unreadLabel: "admin messages",
+          })}
 
-          {/* Admin Messages */}
-          <button
-            type="button"
-            className={getNavItemClass("admin")}
-            onClick={() => handleTabChange("admin")}
-            aria-current={
-              activeTab === "admin" ? "page" : undefined
-            }
-          >
-            <span className="cxchat-nav-item-left">
-              <span className="cxchat-nav-icon">
-                <Megaphone size={18} />
-              </span>
-
-              <span className="cxchat-nav-text">
-                Admin Messages
-              </span>
-            </span>
-
-            <span className="cxchat-nav-item-right">
-              {renderUnreadBadge(adminUnread, "admin messages")}
-              {renderActiveDot("admin")}
-            </span>
-          </button>
-
-          {/* Announcements */}
-          <button
-            type="button"
-            className={getNavItemClass("announcements")}
-            onClick={() => handleTabChange("announcements")}
-            aria-current={
-              activeTab === "announcements"
-                ? "page"
-                : undefined
-            }
-          >
-            <span className="cxchat-nav-item-left">
-              <span className="cxchat-nav-icon">
-                <Bell size={18} />
-              </span>
-
-              <span className="cxchat-nav-text">
-                Announcements
-              </span>
-            </span>
-
-            <span className="cxchat-nav-item-right">
-              {renderUnreadBadge(
-                announcementUnread,
-                "announcements"
-              )}
-              {renderActiveDot("announcements")}
-            </span>
-          </button>
+          {renderNavItem({
+            tab: "announcements",
+            label: "Announcements",
+            Icon: Megaphone,
+            unreadCount: announcementUnread,
+            unreadLabel: "announcements",
+          })}
         </nav>
       </div>
 
-      {/* User Card */}
+      {/* Member Profile Card */}
       <div className="cxchat-sidebar-user-area">
         <div className="cxchat-sidebar-user-card">
           <div className="cxchat-sidebar-user-avatar-wrapper">

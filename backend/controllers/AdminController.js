@@ -145,12 +145,10 @@ export const verifyAdmin = async (req, res) => {
 export const getAdminMembers = async (req, res) => {
   try {
     const members = await CommunityUser.find({})
-      .select(
-        "_id walletAddress fullName username profileImage email phone dob"
-      )
-      .sort({
-        fullName: 1,
-      });
+  .select(
+    "_id walletAddress fullName username profileImage email phone dob isBanned banReason bannedAt bannedBy"
+  )
+  .sort({ fullName: 1 });
 
     return res.status(200).json({
       success: true,
@@ -499,13 +497,26 @@ export const createAdminPrivateMessage = async (req, res) => {
       .toLowerCase()
       .trim();
 
+    const member = await CommunityUser.findOne({
+      $expr: {
+        $eq: [
+          { $toLower: "$walletAddress" },
+          memberWallet,
+        ],
+      },
+    });
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Community member not found",
+      });
+    }
+
     const adminIdentifier =
       `admin:${req.admin.adminId}`.toLowerCase();
 
-    const adminName =
-      senderName?.trim() ||
-      req.admin.username ||
-      "Admin";
+    const adminName = req.admin.username || "Admin";;
 
     // ----------------------------------------------------------
     // Create private message
@@ -719,6 +730,191 @@ export const deleteAdminPrivateMessage = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while deleting private message",
+    });
+  }
+};
+
+
+
+/* ============================================================
+   BAN COMMUNITY MEMBER - ADMIN
+============================================================ */
+
+export const banCommunityMember = async (req, res) => {
+  try {
+    const wallet = req.params.wallet?.trim().toLowerCase();
+    const reason = req.body.reason?.trim();
+
+    if (!wallet) {
+      return res.status(400).json({
+        success: false,
+        message: "Member wallet address is required",
+      });
+    }
+
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: "A ban reason is required",
+      });
+    }
+
+    if (reason.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: "Ban reason cannot exceed 500 characters",
+      });
+    }
+
+    const member = await CommunityUser.findOneAndUpdate(
+      { walletAddress: wallet },
+      {
+        $set: {
+          isBanned: true,
+          banReason: reason,
+          bannedAt: new Date(),
+          bannedBy: req.admin.adminId,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select(
+      "_id walletAddress fullName username profileImage isBanned banReason bannedAt bannedBy"
+    );
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Community member not found",
+      });
+    }
+
+    // Disconnect the member's active Socket.IO connections.
+    const io = req.app.get("io");
+
+    if (io) {
+      const memberRoom = `wallet:${wallet}`;
+
+      io.to(memberRoom).emit("member-banned", {
+        walletAddress: wallet,
+        reason,
+        bannedAt: member.bannedAt,
+      });
+
+      io.in(memberRoom).disconnectSockets(true);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Community member banned successfully",
+      member,
+    });
+  } catch (error) {
+    console.error("Ban Community Member Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while banning community member",
+    });
+  }
+};
+
+/* ============================================================
+   GET BANNED COMMUNITY MEMBERS - ADMIN
+============================================================ */
+
+export const getBannedMembers = async (req, res) => {
+  try {
+    const members = await CommunityUser.find({
+      isBanned: true,
+    })
+      .select(
+        "_id walletAddress fullName username profileImage isBanned banReason bannedAt bannedBy"
+      )
+      .sort({ bannedAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: members.length,
+      members,
+    });
+  } catch (error) {
+    console.error("Get Banned Members Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching banned members",
+    });
+  }
+};
+
+/* ============================================================
+   UNBAN COMMUNITY MEMBER - ADMIN
+============================================================ */
+
+export const unbanCommunityMember = async (req, res) => {
+  try {
+    const wallet = req.params.wallet?.trim().toLowerCase();
+
+    if (!wallet) {
+      return res.status(400).json({
+        success: false,
+        message: "Member wallet address is required",
+      });
+    }
+
+    const member = await CommunityUser.findOneAndUpdate(
+      {
+        walletAddress: wallet,
+        isBanned: true,
+      },
+      {
+        $set: {
+          isBanned: false,
+          banReason: "",
+          bannedAt: null,
+          bannedBy: "",
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select(
+      "_id walletAddress fullName username profileImage isBanned banReason bannedAt bannedBy"
+    );
+
+    if (!member) {
+      const existingMember = await CommunityUser.findOne({
+        walletAddress: wallet,
+      }).select("walletAddress isBanned");
+
+      if (!existingMember) {
+        return res.status(404).json({
+          success: false,
+          message: "Community member not found",
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: "This member is not currently banned",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Community member unbanned successfully",
+      member,
+    });
+  } catch (error) {
+    console.error("Unban Community Member Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while unbanning community member",
     });
   }
 };

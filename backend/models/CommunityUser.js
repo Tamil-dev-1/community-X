@@ -45,6 +45,29 @@ const communityUserSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+
+    isBanned: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    banReason: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    bannedAt: {
+      type: Date,
+      default: null,
+    },
+
+    bannedBy: {
+      type: String,
+      default: "",
+    },
+
   },
   {
     timestamps: true,

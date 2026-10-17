@@ -6,6 +6,8 @@ import { fileURLToPath } from "url";
 import { verifyMessage } from "ethers";
 import jwt from "jsonwebtoken";
 
+import CommunityUser from "../models/CommunityUser.js";
+
 const router = express.Router();
 
 // --------------------------------------------------
@@ -229,6 +231,25 @@ router.post("/web3/verify", async (req, res) => {
           "This wallet is not registered as a ValutX member.",
         walletAddress: recoveredAddress,
         isValutXMember: false,
+      });
+    }
+
+
+    // ----------------------------------------------
+    // Check whether the Community X member is banned
+    // ----------------------------------------------
+
+    const communityUser = await CommunityUser.findOne({
+      walletAddress: recoveredAddress.toLowerCase(),
+    }).select("isBanned banReason bannedAt");
+
+    if (communityUser?.isBanned) {
+      return res.status(403).json({
+        success: false,
+        code: "COMMUNITY_MEMBER_BANNED",
+        message: "Your Community X access has been suspended.",
+        reason: communityUser.banReason || "No reason provided",
+        bannedAt: communityUser.bannedAt,
       });
     }
 

@@ -4,6 +4,7 @@ import {
   createCommunityProfile,
   checkCommunityProfile,
   getCommunityMembers,
+  updateCommunityProfilePhoto,
 } from "../controllers/communityController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -27,6 +28,13 @@ router.get(
   "/members",
   authMiddleware,
   getCommunityMembers
+);
+
+
+router.patch(
+  "/profile/photo",
+  authMiddleware,
+  updateCommunityProfilePhoto
 );
 
 export default router;

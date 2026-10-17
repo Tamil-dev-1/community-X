@@ -1,0 +1,835 @@
+/* ============================================================
+   ADMIN GROUP CHAT PAGE  (single clean block)
+   Delete ALL old group-chat sections from AdminChat.css
+   (from "// groupchat page css" to the end of the file) and
+   import this file AFTER AdminChat.css.
+   ============================================================ */
+
+/* Bootstrap Icons font - fixes the missing sidebar/nav icons too */
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
+
+/* ---------- Inline SVG icons ---------- */
+
+.gc-icon {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Shell ---------- */
+
+.cx-admin-page-content,
+.chat-messages-wrapper:has(> .admin-group-page),
+.chat-main:has(.admin-group-page) .chat-messages-wrapper {
+  padding: 0 !important;
+}
+
+.cx-admin-page-content {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The page is just a frame; the chat panel is the ONLY card */
+.admin-group-page {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+
+  background: transparent;
+  color: var(--cx-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.admin-group-chat-panel {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  border: 0;
+  border-radius: 0;
+  background: #050c1b;
+  box-shadow: none;
+}
+
+/* ---------- Error banner ---------- */
+
+.admin-group-error {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px 20px;
+
+  border-bottom: 1px solid rgba(255, 102, 122, 0.2);
+  color: #ff9ba7;
+  background: rgba(255, 102, 122, 0.08);
+  font-size: 12px;
+}
+
+.admin-group-error .gc-icon {
+  font-size: 15px;
+}
+
+.admin-group-error span {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-group-error button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  color: inherit;
+  background: transparent;
+}
+
+/* ---------- Messages ---------- */
+
+.admin-group-messages {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  /* column flex so few messages sit at the bottom like a real chat */
+  display: flex;
+  flex-direction: column;
+
+  padding: 18px 20px 22px;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+
+  scrollbar-width: thin;
+  scrollbar-color: #2a3a58 transparent;
+
+  background:
+    radial-gradient(circle at 75% 15%, rgba(233, 30, 154, 0.045), transparent 32%),
+    #040a16;
+}
+
+.admin-group-messages::before {
+  content: "";
+  flex: 1 0 0;
+}
+
+.admin-group-messages::-webkit-scrollbar {
+  width: 7px;
+}
+
+.admin-group-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-group-messages::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #2a3a58;
+}
+
+.admin-group-messages::-webkit-scrollbar-thumb:hover {
+  background: #e91e9a;
+}
+
+.admin-group-date-divider {
+  align-self: center;
+  display: flex;
+  margin: 6px 0 16px;
+}
+
+.admin-group-date-divider span {
+  padding: 5px 13px;
+
+  border: 1px solid rgba(105, 126, 165, 0.2);
+  border-radius: 999px;
+
+  color: #8d9bb3;
+  background: #0a1427;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Message row ---------- */
+
+.admin-group-messages .message-row {
+  position: relative;
+  align-self: flex-start;
+
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+
+  width: fit-content;
+  max-width: min(620px, 78%);
+  margin: 0 0 14px;
+}
+
+.admin-group-messages .message-row-own {
+  align-self: flex-end;
+  margin: 0 0 14px;
+  flex-direction: row-reverse;
+}
+
+/* Avatar / profile */
+
+.admin-group-messages .message-row .avatar-circle {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+
+  overflow: hidden;
+  border: 2px solid #2b3b59;
+  border-radius: 50%;
+  background: #0d182c;
+}
+
+.admin-group-messages .message-row .avatar-admin {
+  border-color: #e91e9a;
+  box-shadow: 0 0 0 3px rgba(233, 30, 154, 0.14);
+}
+
+.admin-group-messages .message-row .avatar-circle img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* Bubble */
+
+.admin-group-messages .message-bubble {
+  position: relative;
+  min-width: 120px;
+  max-width: 100%;
+
+  padding: 9px 14px 7px;
+  overflow: visible;
+  overflow-wrap: anywhere;
+
+  border: 1px solid #1f2f4b;
+  border-radius: 16px 16px 16px 4px;
+  background: #0e1a30;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.admin-group-messages .message-row-own .message-bubble {
+  border-color: rgba(233, 30, 154, 0.4);
+  border-radius: 16px 16px 4px 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(190, 3, 120, 0.4) 0%,
+    rgba(130, 16, 125, 0.32) 100%
+  );
+  box-shadow: 0 8px 22px rgba(190, 3, 120, 0.14);
+}
+
+.admin-group-messages .message-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 14px;
+
+  min-height: 22px;
+  margin-bottom: 2px;
+}
+
+.admin-group-messages .message-sender {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+
+  color: #c9d4e8;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.admin-group-role-label {
+  margin: 0;
+  padding: 2px 6px;
+
+  border: 1px solid rgba(255, 155, 213, 0.35);
+  border-radius: 5px;
+
+  color: #ffb3de;
+  background: rgba(233, 30, 154, 0.18);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.admin-group-messages .message-text {
+  margin: 0;
+  color: #eef2fc;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.admin-group-message-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 3px;
+}
+
+.admin-group-messages .message-time {
+  display: inline;
+  margin: 0;
+  color: rgba(214, 224, 242, 0.55);
+  font-size: 10px;
+  text-align: right;
+}
+
+.admin-group-edited-label {
+  color: rgba(214, 224, 242, 0.55);
+  font-size: 10px;
+  font-style: italic;
+}
+
+/* ---------- 3-dot menu ---------- */
+
+.admin-group-message-actions {
+  position: relative;
+  flex: 0 0 auto;
+  margin-right: -7px;
+}
+
+.admin-group-menu-trigger {
+  width: 26px;
+  height: 26px;
+
+  display: grid;
+  place-items: center;
+
+  border: 0;
+  border-radius: 7px;
+
+  color: rgba(255, 255, 255, 0.6);
+  background: transparent;
+  font-size: 16px;
+  transition: 0.15s ease;
+}
+
+.admin-group-menu-trigger:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.admin-group-message-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+
+  min-width: 132px;
+  padding: 5px;
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 11px;
+  background: rgba(13, 21, 40, 0.99);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+  animation: gc-menu-in 0.14s ease-out;
+}
+
+.admin-group-message-menu button {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  padding: 8px 10px;
+
+  border: 0;
+  border-radius: 7px;
+
+  color: #e4eaf7;
+  background: transparent;
+  font-size: 12px;
+  text-align: left;
+}
+
+.admin-group-message-menu button .gc-icon {
+  font-size: 14px;
+}
+
+.admin-group-message-menu button:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.admin-group-message-menu button.danger {
+  color: var(--cx-danger);
+}
+
+.admin-group-message-menu button.danger:hover {
+  background: rgba(255, 102, 122, 0.12);
+}
+
+@keyframes gc-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---------- Document attachments (inside bubbles) ---------- */
+
+.admin-group-attachment {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  width: min(320px, 100%);
+  margin: 4px 0 6px;
+  padding: 9px 11px;
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+
+  color: inherit;
+  background: rgba(3, 8, 23, 0.4);
+  text-decoration: none;
+  transition: 0.2s ease;
+}
+
+.admin-group-attachment:hover {
+  border-color: rgba(233, 30, 154, 0.5);
+  background: rgba(233, 30, 154, 0.12);
+}
+
+.admin-group-attachment-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 11px;
+  color: #ff9bd5;
+  background: rgba(233, 30, 154, 0.16);
+  font-size: 19px;
+}
+
+.admin-group-attachment-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-group-attachment-info strong {
+  overflow: hidden;
+  color: #f1f5ff;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-group-attachment-info small {
+  color: rgba(214, 224, 242, 0.6);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.admin-group-attachment-action {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: rgba(214, 224, 242, 0.7);
+  font-size: 17px;
+}
+
+.admin-group-attachment:hover .admin-group-attachment-action {
+  color: #fff;
+}
+
+.admin-group-attachment-image {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 4px 0 6px;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.admin-group-attachment-image img {
+  display: block;
+  max-width: min(320px, 100%);
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+/* Message currently loaded into the input for editing */
+.admin-group-messages .message-row-editing .message-bubble {
+  border-color: #e91e9a;
+  box-shadow: 0 0 0 3px rgba(233, 30, 154, 0.2);
+}
+
+/* ---------- Input bar ---------- */
+
+.admin-group-page .admin-group-input-bar {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 14px 20px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  border-top: 0;
+  background: transparent;
+}
+
+.admin-group-page .admin-group-input-bar .message-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 18px;
+
+  border-radius: 14px;
+  background: #0a1528;
+  font-size: 14px;
+}
+
+.admin-group-page .admin-group-input-bar .send-btn {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(233, 30, 154, 0.5);
+  border-radius: 14px;
+
+  color: #fff;
+  background: var(--cx-gradient);
+  box-shadow: 0 8px 22px rgba(233, 30, 154, 0.3);
+  font-size: 19px;
+  opacity: 1;
+  transition: 0.2s ease;
+}
+
+.admin-group-page .admin-group-input-bar .send-btn:hover:not(:disabled) {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
+/* Disabled = quiet slate button (not a washed-out pink one) */
+.admin-group-page .admin-group-input-bar .send-btn:disabled {
+  color: #6b7a96;
+  border-color: var(--cx-border);
+  background: #0d182d;
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* ---------- Composer (banner + file chip + input bar) ---------- */
+
+.admin-group-composer {
+  flex: 0 0 auto;
+  min-width: 0;
+  border-top: 1px solid var(--cx-border);
+  background: #071021;
+}
+
+.admin-group-edit-banner,
+.admin-group-file-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  margin: 12px 20px 0;
+  padding: 9px 12px;
+
+  border-radius: 13px;
+  animation: gc-menu-in 0.16s ease-out;
+}
+
+.admin-group-edit-banner {
+  border: 1px solid rgba(233, 30, 154, 0.38);
+  background: rgba(233, 30, 154, 0.1);
+}
+
+.admin-group-file-chip {
+  border: 1px solid var(--cx-border);
+  background: #0b1629;
+}
+
+.admin-group-edit-banner-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 10px;
+  color: #ff9bd5;
+  background: rgba(233, 30, 154, 0.16);
+  font-size: 16px;
+}
+
+.admin-group-edit-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-group-edit-banner-text strong {
+  color: #ff8ed0;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.admin-group-edit-banner-text small {
+  overflow: hidden;
+  color: rgba(214, 224, 242, 0.65);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-group-edit-banner-close {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+
+  color: #c3cee2;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 15px;
+}
+
+.admin-group-edit-banner-close:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.admin-group-attach-btn {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid var(--cx-border);
+  border-radius: 14px;
+
+  color: #a6b4ca;
+  background: #0b1629;
+  font-size: 20px;
+  transition: 0.2s ease;
+}
+
+.admin-group-attach-btn:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(233, 30, 154, 0.5);
+  background: rgba(233, 30, 154, 0.12);
+}
+
+.admin-group-attach-btn:disabled {
+  opacity: 0.4;
+}
+
+/* ---------- Empty / loading / blocked ---------- */
+
+.admin-group-empty-state {
+  margin: auto;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+
+  padding: 30px 16px;
+  color: var(--cx-muted);
+  text-align: center;
+}
+
+.admin-group-empty-state > .gc-icon {
+  font-size: 34px;
+  color: #e91e9a;
+}
+
+.admin-group-empty-state strong {
+  color: var(--cx-text);
+  font-size: 15px;
+}
+
+.admin-group-empty-state p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.admin-group-page-state {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+
+  display: grid;
+  place-items: center;
+
+  padding: 20px;
+  color: var(--cx-text);
+}
+
+.admin-group-state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--cx-muted);
+  text-align: center;
+}
+
+.admin-group-state-card > .gc-icon {
+  font-size: 34px;
+  color: #e91e9a;
+}
+
+.admin-group-state-card h2 {
+  margin: 0;
+  color: var(--cx-text);
+  font-size: 16px;
+}
+
+.admin-group-state-card p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.admin-group-spinner,
+.admin-group-button-spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+
+  border: 2px solid rgba(233, 30, 154, 0.2);
+  border-top-color: #e91e9a;
+  border-radius: 50%;
+  animation: admin-group-spin 0.8s linear infinite;
+}
+
+.admin-group-button-spinner {
+  width: 18px;
+  height: 18px;
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+}
+
+@keyframes admin-group-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 768px) {
+  
+
+
+  .admin-group-messages {
+    padding: 12px 10px 16px;
+  }
+
+  .admin-group-messages .message-row {
+    max-width: 94%;
+  }
+
+  .admin-group-page .admin-group-input-bar {
+    padding: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+  }
+
+  /* 16px stops iOS zoom-on-focus */
+  .admin-group-page .admin-group-input-bar .message-input {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+
+
+
+
+  .admin-group-messages .message-row {
+    max-width: 100%;
+    gap: 7px;
+  }
+
+  .admin-group-messages .message-row .avatar-circle {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-group-edit-banner,
+  .admin-group-file-chip {
+    margin: 10px 10px 0;
+  }
+
+  .admin-group-attach-btn {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+}

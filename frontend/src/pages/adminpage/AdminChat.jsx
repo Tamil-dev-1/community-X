@@ -1,4 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useDispatch, useSelector, useStore } from "react-redux";
+import {
+  setAdminAuth,
+  clearAdminAuth,
+} from "../../features/auth/authSlice";
+import {
+  setAdminGroupMessages,
+  setAdminGroupLoading,
+  setAdminPrivateMessages,
+  setAdminMembers,
+  setAdminMembersLoading,
+  setActiveAdminMemberWallet,
+  clearAdminChat,
+} from "../../features/chat/chatSlice";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -261,9 +275,8 @@ function MembersDashboard({
             <button
               key={filter}
               type="button"
-              className={`members-filter-btn ${
-                statusFilter === filter ? "active" : ""
-              }`}
+              className={`members-filter-btn ${statusFilter === filter ? "active" : ""
+                }`}
               onClick={() => setStatusFilter(filter)}
             >
               {filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -328,9 +341,8 @@ function MembersDashboard({
               >
                 <div className="member-primary-cell">
                   <div
-                    className={`member-large-avatar ${
-                      isAdmin ? "admin" : ""
-                    }`}
+                    className={`member-large-avatar ${isAdmin ? "admin" : ""
+                      }`}
                   >
                     <img
                       src={member.avatar || DEFAULT_AVATAR}
@@ -338,11 +350,10 @@ function MembersDashboard({
                     />
 
                     <span
-                      className={`member-avatar-presence ${
-                        member.status === "online"
+                      className={`member-avatar-presence ${member.status === "online"
                           ? "online"
                           : "offline"
-                      }`}
+                        }`}
                     ></span>
                   </div>
 
@@ -386,9 +397,9 @@ function MembersDashboard({
                     <span>
                       {member.walletAddress
                         ? `${member.walletAddress.slice(
-                            0,
-                            6
-                          )}...${member.walletAddress.slice(-4)}`
+                          0,
+                          6
+                        )}...${member.walletAddress.slice(-4)}`
                         : "N/A"}
                     </span>
                   </div>
@@ -396,11 +407,10 @@ function MembersDashboard({
 
                 <div className="member-status-cell">
                   <span
-                    className={`member-status-pill ${
-                      member.status === "online"
+                    className={`member-status-pill ${member.status === "online"
                         ? "online"
                         : "offline"
-                    }`}
+                      }`}
                   >
                     <span className="member-status-dot"></span>
 
@@ -449,8 +459,98 @@ function MembersDashboard({
 // MAIN ADMIN CHAT
 // ============================================================
 
-function AdminChat() {
-  const storedAdminUser = getStoredAdminUser();
+function AdminChat({
+  initialView = "private",
+  standalonePage = false,
+}) {
+
+  const dispatch = useDispatch();
+  const reduxStore = useStore();
+
+  const storedAdminUser =
+    useSelector((state) => state.auth.adminUser) ||
+    getStoredAdminUser();
+
+  const memberList = useSelector(
+    (state) => state.chat.adminMembers
+  );
+  const conversations = useSelector(
+    (state) => state.chat.adminConversations
+  );
+  const groupMessages = useSelector(
+    (state) => state.chat.adminGroupMessages
+  );
+  const activeAdminMemberWallet = useSelector(
+    (state) => state.chat.activeAdminMemberWallet
+  );
+  const groupLoading = useSelector(
+    (state) => state.chat.adminGroupLoading
+  );
+  const loadingMembers = useSelector(
+    (state) => state.chat.adminMembersLoading
+  );
+
+  // Keep the existing setter-style calls while Redux remains the source
+  // of truth. Reading from the store also keeps Socket.IO callbacks current.
+  const setMemberList = (nextValue) => {
+    const current = reduxStore.getState().chat.adminMembers || [];
+    const next =
+      typeof nextValue === "function"
+        ? nextValue(current)
+        : nextValue;
+    dispatch(setAdminMembers(next));
+  };
+
+  const setConversations = (nextValue) => {
+    const current =
+      reduxStore.getState().chat.adminConversations || {};
+    const next =
+      typeof nextValue === "function"
+        ? nextValue(current)
+        : nextValue || {};
+    const wallets = new Set([
+      ...Object.keys(current),
+      ...Object.keys(next),
+    ]);
+
+    wallets.forEach((wallet) => {
+      dispatch(
+        setAdminPrivateMessages({
+          wallet,
+          messages: next[wallet] || [],
+        })
+      );
+    });
+  };
+
+  const setGroupMessages = (nextValue) => {
+    const current =
+      reduxStore.getState().chat.adminGroupMessages || [];
+    const next =
+      typeof nextValue === "function"
+        ? nextValue(current)
+        : nextValue;
+    dispatch(setAdminGroupMessages(next));
+  };
+
+  const setGroupLoading = (value) => {
+    dispatch(setAdminGroupLoading(value));
+  };
+
+  const setLoadingMembers = (value) => {
+    dispatch(setAdminMembersLoading(value));
+  };
+
+  const setActiveMemberId = (memberId) => {
+    const members =
+      reduxStore.getState().chat.adminMembers || [];
+    const member = members.find(
+      (item) => String(item.id) === String(memberId)
+    );
+    dispatch(
+      setActiveAdminMemberWallet(member?.walletAddress || "")
+    );
+  };
 
   const adminUser = {
     id:
@@ -481,11 +581,7 @@ function AdminChat() {
   // STATE
   // ==========================================================
 
-  const [activeNav, setActiveNav] = useState("private");
-  const [memberList, setMemberList] = useState([]);
-  const [activeMemberId, setActiveMemberId] = useState("");
-  const [conversations, setConversations] = useState({});
-  const [groupMessages, setGroupMessages] = useState([]);
+  const [activeNav, setActiveNav] = useState(initialView);
   const [groupUnreadCount, setGroupUnreadCount] = useState(0);
 
   const [notificationPermission, setNotificationPermission] =
@@ -495,10 +591,8 @@ function AdminChat() {
         : Notification.permission
     );
 
-  const [groupLoading, setGroupLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
-  const [loadingMembers, setLoadingMembers] = useState(false);
   const [memberError, setMemberError] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -532,6 +626,9 @@ function AdminChat() {
   const socketRef = useRef(null);
   const activeNavRef = useRef(activeNav);
   activeNavRef.current = activeNav;
+  useEffect(() => {
+    setActiveNav(initialView);
+  }, [initialView]);
   const inputRef = useRef(null);
 
   const editingGroupIdRef = useRef(null);
@@ -549,8 +646,12 @@ function AdminChat() {
 
   const activeMember =
     memberList.find(
-      (member) => member.id === activeMemberId
+      (member) =>
+        normalizeWallet(member.walletAddress) ===
+        normalizeWallet(activeAdminMemberWallet)
     ) || null;
+
+  const activeMemberId = activeMember?.id || "";
 
   const activeMemberWallet = normalizeWallet(
     activeMember?.walletAddress
@@ -597,11 +698,22 @@ function AdminChat() {
   // ==========================================================
 
   useEffect(() => {
+    console.log("ADMIN CHAT AUTH EFFECT STARTED");
     const verifyAdminSession = async () => {
       setAdminVerifyLoading(true);
       setAdminVerifyError("");
 
       const token = getAdminToken();
+      console.log("ADMIN CHAT TOKEN CHECK:", {
+  path: window.location.pathname,
+  tokenFromHelper: Boolean(token),
+  localStorageToken: Boolean(
+    localStorage.getItem("adminToken")
+  ),
+  adminUser: Boolean(
+    localStorage.getItem("adminUser")
+  ),
+});
 
       if (!token) {
         setAdminVerified(false);
@@ -611,6 +723,16 @@ function AdminChat() {
         );
         return;
       }
+      console.log("ADMIN CHAT TOKEN CHECK:", {
+  path: window.location.pathname,
+  tokenFromHelper: Boolean(token),
+  localStorageToken: Boolean(
+    localStorage.getItem("adminToken")
+  ),
+  adminUser: Boolean(
+    localStorage.getItem("adminUser")
+  ),
+});
 
       try {
         const response = await fetch(
@@ -650,14 +772,28 @@ function AdminChat() {
             "adminUser",
             JSON.stringify(updatedAdmin)
           );
+
+          dispatch(
+            setAdminAuth({
+              token,
+              adminUser: updatedAdmin,
+            })
+          );
+        } else {
+          dispatch(
+            setAdminAuth({
+              token,
+              adminUser: getStoredAdminUser(),
+            })
+          );
         }
 
         setAdminVerified(true);
       } catch (error) {
         console.error("Admin verification error:", error);
 
-        localStorage.removeItem("adminToken");
-        localStorage.removeItem("adminUser");
+        dispatch(clearAdminAuth());
+        dispatch(clearAdminChat());
 
         setAdminVerified(false);
         setAdminVerifyError(
@@ -669,7 +805,7 @@ function AdminChat() {
     };
 
     verifyAdminSession();
-  }, []);
+  }, [dispatch]);
 
   // ==========================================================
   // FETCH MEMBERS
@@ -709,7 +845,7 @@ function AdminChat() {
         if (!response.ok) {
           throw new Error(
             data?.message ||
-              "Failed to fetch community members."
+            "Failed to fetch community members."
           );
         }
 
@@ -805,7 +941,9 @@ function AdminChat() {
       ADMIN_ACTIVE_MEMBER_KEY,
       activeMemberWallet
     );
-  }, [activeMemberWallet]);
+
+    dispatch(setActiveAdminMemberWallet(activeMemberWallet));
+  }, [activeMemberWallet, dispatch]);
 
   // ==========================================================
   // BROWSER NOTIFICATIONS
@@ -1136,15 +1274,15 @@ function AdminChat() {
         previous.map((message) =>
           String(message.id) === String(messageId)
             ? {
-                ...message,
-                ...updatedMessage,
-                id: messageId,
-                isEdited: true,
-                isAdmin:
-                  normalizeWallet(
-                    updatedMessage?.senderWallet
-                  ) === adminIdentifier,
-              }
+              ...message,
+              ...updatedMessage,
+              id: messageId,
+              isEdited: true,
+              isAdmin:
+                normalizeWallet(
+                  updatedMessage?.senderWallet
+                ) === adminIdentifier,
+            }
             : message
         )
       );
@@ -1212,12 +1350,12 @@ function AdminChat() {
           ).map((message) =>
             String(message.id) === String(messageId)
               ? {
-                  ...message,
-                  ...updatedMessage,
-                  id: messageId,
-                  isEdited: true,
-                  isAdmin: sender === adminIdentifier,
-                }
+                ...message,
+                ...updatedMessage,
+                id: messageId,
+                isEdited: true,
+                isAdmin: sender === adminIdentifier,
+              }
               : message
           ),
         }));
@@ -1326,7 +1464,7 @@ function AdminChat() {
         if (!response.ok) {
           throw new Error(
             data?.message ||
-              "Failed to fetch admin group messages."
+            "Failed to fetch admin group messages."
           );
         }
 
@@ -1412,7 +1550,7 @@ function AdminChat() {
         if (!response.ok) {
           throw new Error(
             data?.message ||
-              "Failed to fetch private messages."
+            "Failed to fetch private messages."
           );
         }
 
@@ -1536,13 +1674,13 @@ function AdminChat() {
         previous.map((message) =>
           String(message.id) === String(messageId)
             ? {
-                ...message,
-                ...(updatedMessage || {}),
-                id: messageId,
-                message: updatedMessage?.message || text,
-                isEdited: true,
-                isAdmin: true,
-              }
+              ...message,
+              ...(updatedMessage || {}),
+              id: messageId,
+              message: updatedMessage?.message || text,
+              isEdited: true,
+              isAdmin: true,
+            }
             : message
         )
       );
@@ -1702,13 +1840,13 @@ function AdminChat() {
           updated[wallet] = updated[wallet].map((message) =>
             String(message.id) === String(messageId)
               ? {
-                  ...message,
-                  ...(updatedMessage || {}),
-                  id: messageId,
-                  message: updatedMessage?.message || text,
-                  isEdited: true,
-                  isAdmin: true,
-                }
+                ...message,
+                ...(updatedMessage || {}),
+                id: messageId,
+                message: updatedMessage?.message || text,
+                isEdited: true,
+                isAdmin: true,
+              }
               : message
           );
         });
@@ -1871,7 +2009,7 @@ function AdminChat() {
         if (!response.ok) {
           throw new Error(
             data?.message ||
-              "Failed to send admin group message."
+            "Failed to send admin group message."
           );
         }
 
@@ -1941,7 +2079,7 @@ function AdminChat() {
         if (!response.ok) {
           throw new Error(
             data?.message ||
-              "Failed to send private message."
+            "Failed to send private message."
           );
         }
 
@@ -2033,6 +2171,10 @@ function AdminChat() {
 
     setActiveMemberId(member.id);
 
+    dispatch(
+      setActiveAdminMemberWallet(member.walletAddress || "")
+    );
+
     localStorage.setItem(
       ADMIN_ACTIVE_MEMBER_KEY,
       normalizeWallet(member.walletAddress)
@@ -2058,8 +2200,10 @@ function AdminChat() {
       socketRef.current = null;
     }
 
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminUser");
+    dispatch(clearAdminAuth());
+    dispatch(clearAdminChat());
+
+    localStorage.removeItem(ADMIN_ACTIVE_MEMBER_KEY);
 
     window.location.href = "/admin-login";
   };
@@ -2157,7 +2301,7 @@ function AdminChat() {
       type === "group"
         ? String(editingGroupMessageId) === String(message.id)
         : String(editingPrivateMessageId) ===
-          String(message.id);
+        String(message.id);
 
     if (isBeingEdited) return null;
 
@@ -2264,142 +2408,139 @@ function AdminChat() {
 
   return (
     <div
-      className={`admin-chat-app ${
-        activeNav === "private"
+      className={`admin-chat-app ${activeNav === "private"
           ? "private-layout"
           : "single-content-layout"
-      }`}
+        }`}
     >
       {(navOpen ||
         (activeNav === "private" && listOpen)) && (
-        <div
-          className="panel-backdrop"
-          onClick={() => {
-            setNavOpen(false);
+          <div
+            className="panel-backdrop"
+            onClick={() => {
+              setNavOpen(false);
 
-            if (window.innerWidth <= 768) {
-              setListOpen(false);
-            }
-          }}
-        ></div>
-      )}
+              if (window.innerWidth <= 768) {
+                setListOpen(false);
+              }
+            }}
+          ></div>
+        )}
 
       {/* ADMIN NAVIGATION */}
 
-      <aside
-        className={`admin-nav-panel ${navOpen ? "open" : ""}`}
-      >
-        <div className="admin-brand">
-          <div className="brand-badge">
-            <i className="bi bi-shield-fill-check"></i>
+      {!standalonePage && (
+        <aside
+          className={`admin-nav-panel ${navOpen ? "open" : ""}`}
+        >
+          <div className="admin-brand">
+            <div className="brand-badge">
+              <i className="bi bi-shield-fill-check"></i>
+            </div>
+
+            <div>
+              <div className="brand-name">COMMUNITY X</div>
+              <small className="text-secondary">ADMIN PANEL</small>
+            </div>
           </div>
 
-          <div>
-            <div className="brand-name">COMMUNITY X</div>
-            <small className="text-secondary">ADMIN PANEL</small>
+          <div className="admin-sidebar-profile">
+            <div className="avatar-circle avatar-admin">
+              <img src={adminUser.avatar} alt="Admin" />
+            </div>
+
+            <div className="member-row-text">
+              <strong className="member-row-name">
+                {adminUser.name}
+              </strong>
+
+              <span className="member-row-status">
+                <span className="status-dot status-online"></span>
+                Administrator
+              </span>
+            </div>
           </div>
-        </div>
 
-        <div className="admin-sidebar-profile">
-          <div className="avatar-circle avatar-admin">
-            <img src={adminUser.avatar} alt="Admin" />
-          </div>
+          <nav className="admin-nav">
+            {NAV_ITEMS.map((item) => {
+              const isActive = activeNav === item.key;
 
-          <div className="member-row-text">
-            <strong className="member-row-name">
-              {adminUser.name}
-            </strong>
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`admin-nav-item ${isActive ? "active" : ""
+                    }`}
+                  onClick={() => handleNavChange(item.key)}
+                >
+                  <span className="nav-icon">
+                    <i className={`bi ${item.icon}`}></i>
+                  </span>
 
-            <span className="member-row-status">
-              <span className="status-dot status-online"></span>
-              Administrator
+                  <span>{item.label}</span>
+
+                  {item.key === "group" &&
+                    groupUnreadCount > 0 && (
+                      <span
+                        className="admin-unread-badge"
+                        aria-label={`${groupUnreadCount} unread group messages`}
+                      >
+                        {groupUnreadCount > 99
+                          ? "99+"
+                          : groupUnreadCount}
+                      </span>
+                    )}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="circuit-decor"></div>
+
+          <div className="admin-nav-footer">
+            <span>
+              <i className="bi bi-shield-check"></i>
             </span>
-          </div>
-        </div>
 
-        <nav className="admin-nav">
-          {NAV_ITEMS.map((item) => {
-            const isActive = activeNav === item.key;
+            <small>Secure Admin Session</small>
 
-            return (
+            {notificationPermission !== "unsupported" && (
               <button
-                key={item.key}
                 type="button"
-                className={`admin-nav-item ${
-                  isActive ? "active" : ""
-                }`}
-                onClick={() => handleNavChange(item.key)}
-              >
-                <span className="nav-icon">
-                  <i className={`bi ${item.icon}`}></i>
-                </span>
-
-                <span>{item.label}</span>
-
-                {item.key === "group" &&
-                  groupUnreadCount > 0 && (
-                    <span
-                      className="admin-unread-badge"
-                      aria-label={`${groupUnreadCount} unread group messages`}
-                    >
-                      {groupUnreadCount > 99
-                        ? "99+"
-                        : groupUnreadCount}
-                    </span>
-                  )}
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="circuit-decor"></div>
-
-        <div className="admin-nav-footer">
-          <span>
-            <i className="bi bi-shield-check"></i>
-          </span>
-
-          <small>Secure Admin Session</small>
-
-          {notificationPermission !== "unsupported" && (
-            <button
-              type="button"
-              className="admin-notification-toggle"
-              onClick={requestBrowserNotificationPermission}
-              disabled={notificationPermission === "granted"}
-              title={
-                notificationPermission === "granted"
-                  ? "Desktop notifications are enabled"
-                  : notificationPermission === "denied"
-                  ? "Notifications are blocked in browser settings"
-                  : "Enable desktop notifications"
-              }
-            >
-              <i
-                className={`bi ${
+                className="admin-notification-toggle"
+                onClick={requestBrowserNotificationPermission}
+                disabled={notificationPermission === "granted"}
+                title={
                   notificationPermission === "granted"
-                    ? "bi-bell-fill"
-                    : "bi-bell"
-                }`}
-              ></i>
+                    ? "Desktop notifications are enabled"
+                    : notificationPermission === "denied"
+                      ? "Notifications are blocked in browser settings"
+                      : "Enable desktop notifications"
+                }
+              >
+                <i
+                  className={`bi ${notificationPermission === "granted"
+                      ? "bi-bell-fill"
+                      : "bi-bell"
+                    }`}
+                ></i>
 
-              {notificationPermission === "granted"
-                ? "Notifications enabled"
-                : notificationPermission === "denied"
-                ? "Notifications blocked"
-                : "Enable notifications"}
-            </button>
-          )}
-        </div>
-      </aside>
-
+                {notificationPermission === "granted"
+                  ? "Notifications enabled"
+                  : notificationPermission === "denied"
+                    ? "Notifications blocked"
+                    : "Enable notifications"}
+              </button>
+            )}
+          </div>
+        </aside>
+      )}
       {/* MEMBER PANEL */}
 
-      {activeNav === "private" && (
+      {activeNav === "private" && !standalonePage && (
         <aside
-          className={`member-panel ${
-            listOpen ? "open" : ""
-          }`}
+          className={`member-panel ${listOpen ? "open" : ""
+            }`}
         >
           <div className="member-panel-header">
             <div>
@@ -2467,9 +2608,8 @@ function AdminChat() {
                     <button
                       type="button"
                       key={member.id || member.walletAddress}
-                      className={`member-row ${
-                        isActive ? "active" : ""
-                      }`}
+                      className={`member-row ${isActive ? "active" : ""
+                        }`}
                       onClick={() => handleSelectMember(member)}
                     >
                       <div className="avatar-circle">
@@ -2486,11 +2626,10 @@ function AdminChat() {
 
                         <span className="member-row-status">
                           <span
-                            className={`status-dot ${
-                              member.status === "online"
+                            className={`status-dot ${member.status === "online"
                                 ? "status-online"
                                 : "status-offline"
-                            }`}
+                              }`}
                           ></span>
 
                           {member.status === "online"
@@ -2509,9 +2648,8 @@ function AdminChat() {
       {/* MAIN CONTENT */}
 
       <main
-        className={`chat-main ${
-          activeNav === "members" ? "members-mode" : ""
-        } ${activeNav === "announcements" ? "announcements-mode" : ""}`}
+        className={`chat-main ${activeNav === "members" ? "members-mode" : ""
+          } ${activeNav === "announcements" ? "announcements-mode" : ""}`}
       >
         <header className="chat-header">
           <button
@@ -2566,11 +2704,10 @@ function AdminChat() {
 
                   <span className="chat-header-status">
                     <span
-                      className={`status-dot ${
-                        activeMember.status === "online"
+                      className={`status-dot ${activeMember.status === "online"
                           ? "status-online"
                           : "status-offline"
-                      }`}
+                        }`}
                     ></span>
 
                     {activeMember.status === "online"
@@ -2590,8 +2727,8 @@ function AdminChat() {
                     {activeNav === "members"
                       ? "Member Management"
                       : activeNav === "announcements"
-                      ? "Announcements"
-                      : "Private Messages"}
+                        ? "Announcements"
+                        : "Private Messages"}
                   </h1>
 
                   <span className="chat-header-status">
@@ -2684,9 +2821,8 @@ function AdminChat() {
                         message.id ||
                         `${message.createdAt}-${message.message}`
                       }
-                      className={`message-row ${
-                        message.isAdmin ? "message-row-own" : ""
-                      }`}
+                      className={`message-row ${message.isAdmin ? "message-row-own" : ""
+                        }`}
                     >
                       <div className="avatar-circle">
                         <img
@@ -2730,11 +2866,11 @@ function AdminChat() {
                           <span className="message-time">
                             {message.createdAt
                               ? new Date(
-                                  message.createdAt
-                                ).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
+                                message.createdAt
+                              ).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
                               : ""}
                           </span>
                         </div>
@@ -2781,9 +2917,8 @@ function AdminChat() {
                     <i className="bi bi-hourglass-split"></i>
                   ) : (
                     <i
-                      className={`bi ${
-                        isEditing ? "bi-check-lg" : "bi-send-fill"
-                      }`}
+                      className={`bi ${isEditing ? "bi-check-lg" : "bi-send-fill"
+                        }`}
                     ></i>
                   )}
                 </button>
@@ -2838,9 +2973,8 @@ function AdminChat() {
                         message.id ||
                         `${message.createdAt}-${message.message}`
                       }
-                      className={`message-row ${
-                        message.isAdmin ? "message-row-own" : ""
-                      }`}
+                      className={`message-row ${message.isAdmin ? "message-row-own" : ""
+                        }`}
                     >
                       <div className="avatar-circle">
                         <img
@@ -2855,7 +2989,7 @@ function AdminChat() {
                             {message.isAdmin
                               ? adminUser.name
                               : message.senderName ||
-                                activeMember.name}
+                              activeMember.name}
                           </span>
 
                           {message.isAdmin && (
@@ -2881,20 +3015,20 @@ function AdminChat() {
                           "private",
                           message.id
                         ) && (
-                          <span className="editing-label">
-                            Editing this message
-                          </span>
-                        )}
+                            <span className="editing-label">
+                              Editing this message
+                            </span>
+                          )}
 
                         <div className="d-flex align-items-center gap-2 mt-1">
                           <span className="message-time">
                             {message.createdAt
                               ? new Date(
-                                  message.createdAt
-                                ).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
+                                message.createdAt
+                              ).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
                               : ""}
                           </span>
                         </div>
@@ -2945,9 +3079,8 @@ function AdminChat() {
                         <i className="bi bi-hourglass-split"></i>
                       ) : (
                         <i
-                          className={`bi ${
-                            isEditing ? "bi-check-lg" : "bi-send-fill"
-                          }`}
+                          className={`bi ${isEditing ? "bi-check-lg" : "bi-send-fill"
+                            }`}
                         ></i>
                       )}
                     </button>

@@ -2618,3 +2618,1066 @@ button:disabled {
   cursor: default;
   opacity: 0.75;
 }
+
+
+/* // groupchat page css */
+
+
+/* ============================================================
+   ADMIN GROUP CHAT PAGE
+   Uses the shared AdminLayout sidebar.
+   ============================================================ */
+
+.admin-group-page {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  overflow: hidden;
+  color: var(--cx-text);
+  background:
+    radial-gradient(circle at 80% 0%, rgba(233, 30, 154, 0.06), transparent 30%),
+    var(--cx-bg);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+
+.admin-group-page-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.admin-group-heading-icon,
+.admin-group-topbar-avatar {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(233, 30, 154, 0.3);
+  border-radius: 14px;
+  color: #ff9bd5;
+  background: rgba(233, 30, 154, 0.12);
+  font-size: 20px;
+}
+
+.admin-group-eyebrow {
+  margin: 0 0 5px;
+  color: #7888a4;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+}
+
+.admin-group-heading h1 {
+  margin: 0;
+  color: #f4f7ff;
+  font-size: clamp(21px, 2vw, 28px);
+  font-weight: 780;
+  letter-spacing: -0.03em;
+}
+
+.admin-group-subtitle {
+  margin: 5px 0 0;
+  color: var(--cx-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-group-header-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #93a2ba;
+  font-size: 11px;
+}
+
+.admin-group-unread {
+  padding: 6px 10px;
+  border: 1px solid rgba(233, 30, 154, 0.3);
+  border-radius: 999px;
+  color: #ffb5df;
+  background: rgba(233, 30, 154, 0.12);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-group-error {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 102, 122, 0.25);
+  border-radius: 11px;
+  color: #ff9ba7;
+  background: rgba(255, 102, 122, 0.08);
+  font-size: 12px;
+}
+
+.admin-group-error span {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-group-error button {
+  border: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.admin-group-chat-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--cx-border);
+  border-radius: 17px;
+  background: #050c1b;
+  box-shadow: var(--cx-shadow);
+}
+
+.admin-group-chat-topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--cx-border);
+  background: rgba(7, 16, 32, 0.94);
+}
+
+.admin-group-chat-topbar .admin-group-topbar-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  font-size: 17px;
+}
+
+.admin-group-topbar-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-group-topbar-copy h2 {
+  margin: 0 0 5px;
+  color: #f4f7ff;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.admin-group-topbar-copy > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #8190a9;
+  font-size: 11px;
+}
+
+.admin-group-refresh {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--cx-border);
+  border-radius: 10px;
+  color: #a6b4ca;
+  background: #0b1629;
+}
+
+.admin-group-refresh:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(233, 30, 154, 0.45);
+}
+
+.admin-group-refresh:disabled {
+  opacity: 0.5;
+}
+
+.admin-group-rotating {
+  animation: admin-chat-spin 0.8s linear infinite;
+}
+
+.admin-group-messages {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background:
+    radial-gradient(circle at 70% 15%, rgba(233, 30, 154, 0.045), transparent 30%),
+    #040a16;
+  scrollbar-width: thin;
+  scrollbar-color: #1f3050 transparent;
+}
+
+.admin-group-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-group-messages::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #1b2942;
+}
+
+.admin-group-date-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0 18px;
+}
+
+.admin-group-date-divider span {
+  padding: 5px 11px;
+  border: 1px solid rgba(105, 126, 165, 0.18);
+  border-radius: 999px;
+  color: #8d9bb3;
+  background: #0a1427;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.admin-group-messages .message-row {
+  max-width: 82%;
+}
+
+.admin-group-messages .message-row .avatar-circle {
+  overflow: hidden;
+}
+
+.admin-group-messages .message-bubble {
+  overflow: visible;
+}
+
+.admin-group-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.admin-group-edit-actions .btn-primary {
+  border-color: #b50d77;
+  background: var(--cx-gradient);
+}
+
+.admin-group-input-bar {
+  width: 100%;
+}
+
+.admin-group-input-bar .message-input {
+  min-height: 40px;
+  max-height: 100px;
+  resize: none;
+}
+
+.admin-group-page-state {
+  min-height: 280px;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .admin-group-page {
+    height: 100%;
+    min-height: 0;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .admin-group-page-header {
+    gap: 10px;
+  }
+
+  .admin-group-heading {
+    gap: 10px;
+  }
+
+  .admin-group-heading-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    font-size: 17px;
+  }
+
+  .admin-group-eyebrow {
+    font-size: 9px;
+  }
+
+  .admin-group-heading h1 {
+    font-size: 21px;
+  }
+
+  .admin-group-subtitle {
+    max-width: 290px;
+    font-size: 11px;
+  }
+
+  .admin-group-chat-panel {
+    border-radius: 13px;
+  }
+
+  .admin-group-chat-topbar {
+    min-height: 62px;
+    padding: 9px 11px;
+  }
+
+  .admin-group-messages {
+    padding: 12px 9px;
+  }
+
+  .admin-group-messages .message-row {
+    max-width: 96%;
+  }
+
+  .admin-group-input-bar {
+    gap: 7px;
+    padding: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-group-page {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .admin-group-heading-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .admin-group-header-status {
+    font-size: 10px;
+  }
+
+  .admin-group-chat-topbar .admin-group-topbar-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .admin-group-messages .message-row .avatar-circle {
+    display: none;
+  }
+}
+
+
+/* ============================================================
+   GROUP CHAT PAGE — LAYOUT FIX
+   Append at the very bottom of AdminChat.css
+   ============================================================ */
+
+/* Use the available AdminLayout height without extra outer padding */
+.admin-group-page {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* Keep the page title compact */
+.admin-group-page-header {
+  flex: 0 0 auto;
+  padding: 12px 18px;
+  gap: 10px;
+}
+
+/* Let the chat panel fill all remaining vertical space */
+.admin-group-chat-panel {
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+/* Make the message list the only scrolling chat area */
+.admin-group-messages {
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 0;
+  padding: 14px 18px;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #344565 #071021;
+}
+
+.admin-group-messages::-webkit-scrollbar {
+  width: 7px;
+}
+
+.admin-group-messages::-webkit-scrollbar-track {
+  background: #071021;
+}
+
+.admin-group-messages::-webkit-scrollbar-thumb {
+  background: #344565;
+  border-radius: 999px;
+}
+
+.admin-group-messages::-webkit-scrollbar-thumb:hover {
+  background: #e91e9a;
+}
+
+/* Restore correct left/right message alignment */
+.admin-group-messages .message-row {
+  display: flex;
+  align-items: flex-start;
+  width: fit-content;
+  max-width: 82%;
+  margin: 0 0 12px;
+}
+
+.admin-group-messages .message-row-own {
+  margin-left: auto;
+  margin-right: 0;
+  flex-direction: row-reverse;
+}
+
+.admin-group-messages .message-bubble {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.admin-group-messages .message-row-own .message-bubble {
+  border-color: rgba(233, 30, 154, 0.32);
+  background: rgba(233, 30, 154, 0.15);
+}
+
+/* Keep the input bar at the bottom */
+.admin-group-input-bar {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+/* Loading/error states must fit the shared layout */
+.admin-group-page-state {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Responsive spacing */
+@media (max-width: 768px) {
+  .admin-group-page-header {
+    padding: 10px 12px;
+  }
+
+  .admin-group-messages {
+    padding: 12px 10px;
+  }
+
+  .admin-group-messages .message-row {
+    max-width: 96%;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-group-page-header {
+    padding: 8px;
+  }
+
+  .admin-group-messages {
+    padding: 10px 8px;
+  }
+}
+
+
+/* ============================================================
+   ADMIN GROUP CHAT PAGE - LAYOUT AND MESSAGE ALIGNMENT FIX
+   Append this block at the end of AdminChat.css
+============================================================ */
+
+.cx-admin-page-content {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-group-page {
+  flex: 1 1 0;
+  width: 100%;
+  height: 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  color: var(--cx-text);
+  background:
+    radial-gradient(
+      circle at 85% 5%,
+      rgba(233, 30, 154, 0.06),
+      transparent 28%
+    ),
+    var(--cx-bg);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.admin-group-page-header {
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--cx-border);
+  background: rgba(7, 16, 32, 0.75);
+}
+
+.admin-group-page-header h1 {
+  margin: 3px 0;
+  color: var(--cx-text);
+  font-size: clamp(19px, 2vw, 25px);
+  font-weight: 800;
+}
+
+.admin-group-page-header p {
+  margin: 0;
+  color: var(--cx-muted);
+  font-size: 12px;
+}
+
+.admin-group-eyebrow {
+  color: #d84ba5;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+}
+
+.admin-group-header-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid var(--cx-border);
+  border-radius: 999px;
+  color: var(--cx-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.admin-group-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--cx-green);
+  box-shadow: 0 0 9px rgba(31, 214, 160, 0.5);
+}
+
+.admin-group-chat-panel {
+  flex: 1 1 0;
+  width: 100%;
+  height: 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: #050c1b;
+}
+
+.admin-group-chat-topbar {
+  flex: 0 0 auto;
+  min-height: 65px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--cx-border);
+  background: #071021;
+}
+
+.admin-group-chat-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(233, 30, 154, 0.25);
+  border-radius: 12px;
+  color: #ff79c8;
+  background: rgba(233, 30, 154, 0.12);
+}
+
+.admin-group-chat-title {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-group-chat-title strong {
+  color: var(--cx-text);
+  font-size: 13px;
+}
+
+.admin-group-chat-title span {
+  color: var(--cx-muted);
+  font-size: 10px;
+}
+
+.admin-group-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid var(--cx-border);
+  border-radius: 9px;
+  color: var(--cx-muted);
+  background: var(--cx-panel);
+  font-size: 11px;
+}
+
+.admin-group-refresh-btn:hover {
+  color: #fff;
+  border-color: rgba(233, 30, 154, 0.4);
+}
+
+.admin-group-refresh-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.admin-group-messages {
+  flex: 1 1 0;
+  width: 100%;
+  height: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #344565 #071021;
+  background:
+    radial-gradient(
+      circle at 75% 15%,
+      rgba(233, 30, 154, 0.035),
+      transparent 30%
+    ),
+    #040a16;
+}
+
+.admin-group-messages::-webkit-scrollbar {
+  width: 7px;
+}
+
+.admin-group-messages::-webkit-scrollbar-track {
+  background: #071021;
+}
+
+.admin-group-messages::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #344565;
+}
+
+.admin-group-messages::-webkit-scrollbar-thumb:hover {
+  background: #e91e9a;
+}
+
+/* Message row alignment */
+.admin-group-messages .message-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: fit-content;
+  max-width: 82%;
+  margin: 0 0 13px;
+}
+
+.admin-group-messages .message-row-own {
+  margin-left: auto;
+  margin-right: 0;
+  flex-direction: row-reverse;
+}
+
+.admin-group-messages .message-row .avatar-circle {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  overflow: hidden;
+}
+
+.admin-group-messages .message-row .avatar-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-group-messages .message-bubble {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 9px 11px 7px;
+}
+
+.admin-group-messages .message-row-own .message-bubble {
+  border-color: rgba(233, 30, 154, 0.32);
+  background: rgba(233, 30, 154, 0.15);
+}
+
+.admin-group-messages .message-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.admin-group-role-label {
+  margin-left: 7px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: #ff8ed0;
+  background: rgba(233, 30, 154, 0.12);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.admin-group-date-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 0 18px;
+}
+
+.admin-group-date-divider span {
+  padding: 5px 10px;
+  border: 1px solid var(--cx-border);
+  border-radius: 999px;
+  color: var(--cx-muted);
+  background: #0b1528;
+  font-size: 10px;
+}
+
+.admin-group-message-actions {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.admin-group-menu-trigger {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  color: var(--cx-muted);
+  background: transparent;
+}
+
+.admin-group-menu-trigger:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.admin-group-message-menu {
+  position: absolute;
+  top: 26px;
+  right: 0;
+  z-index: 20;
+  min-width: 120px;
+  padding: 5px;
+  border: 1px solid var(--cx-border);
+  border-radius: 10px;
+  background: #0b1528;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+.admin-group-message-menu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--cx-text);
+  background: transparent;
+  text-align: left;
+  font-size: 11px;
+}
+
+.admin-group-message-menu button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-group-message-menu button.danger {
+  color: var(--cx-danger);
+}
+
+.admin-group-message-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.admin-group-edited-label {
+  color: var(--cx-muted);
+  font-size: 9px;
+  font-style: italic;
+}
+
+.admin-group-edit-box {
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-group-edit-box textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  resize: vertical;
+  border: 1px solid var(--cx-border);
+  border-radius: 8px;
+  outline: none;
+  color: var(--cx-text);
+  background: #071021;
+  font: inherit;
+  font-size: 12px;
+}
+
+.admin-group-edit-box textarea:focus {
+  border-color: #e91e9a;
+}
+
+.admin-group-edit-box > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.admin-group-edit-box button {
+  padding: 6px 9px;
+  border: 1px solid var(--cx-border);
+  border-radius: 7px;
+  color: var(--cx-muted);
+  background: var(--cx-panel);
+  font-size: 10px;
+}
+
+.admin-group-edit-box button.save {
+  color: #fff;
+  border-color: #a81071;
+  background: #a81071;
+}
+
+.admin-group-message-footer .message-time {
+  margin-top: 5px;
+}
+
+.admin-group-input-bar {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 65px;
+  margin: 0;
+  padding: 10px 16px;
+}
+
+.admin-group-input-bar .message-input {
+  min-width: 0;
+  min-height: 40px;
+  max-height: 100px;
+}
+
+.admin-group-error {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 16px;
+  color: #ff9aa8;
+  background: rgba(255, 102, 122, 0.08);
+  font-size: 12px;
+}
+
+.admin-group-error span {
+  flex: 1;
+}
+
+.admin-group-error button {
+  border: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.admin-group-page-state {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  color: var(--cx-text);
+  background: var(--cx-bg);
+}
+
+.admin-group-state-card,
+.admin-group-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: var(--cx-muted);
+  text-align: center;
+}
+
+.admin-group-state-card > i,
+.admin-group-empty-state > i {
+  color: #e91e9a;
+  font-size: 30px;
+}
+
+.admin-group-state-card h2,
+.admin-group-empty-state strong {
+  margin: 0;
+  color: var(--cx-text);
+  font-size: 15px;
+}
+
+.admin-group-state-card p,
+.admin-group-empty-state p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.admin-group-spinner,
+.admin-group-button-spinner {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(233, 30, 154, 0.2);
+  border-top-color: #e91e9a;
+  border-radius: 50%;
+  animation: admin-group-spin 0.8s linear infinite;
+}
+
+.admin-group-button-spinner {
+  width: 16px;
+  height: 16px;
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+}
+
+@keyframes admin-group-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-group-page-header {
+    padding: 10px 12px;
+  }
+
+  .admin-group-page-header p {
+    max-width: 250px;
+  }
+
+  .admin-group-chat-topbar {
+    min-height: 58px;
+    padding: 8px 12px;
+  }
+
+  .admin-group-messages {
+    padding: 12px 10px;
+  }
+
+  .admin-group-messages .message-row {
+    max-width: 96%;
+  }
+
+  .admin-group-input-bar {
+    padding: 9px 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-group-page-header {
+    padding: 9px;
+  }
+
+  .admin-group-header-status {
+    padding: 6px 8px;
+  }
+
+  .admin-group-chat-title span {
+    font-size: 9px;
+  }
+
+  .admin-group-refresh-btn {
+    padding: 7px 8px;
+  }
+
+  .admin-group-refresh-btn span {
+    display: none;
+  }
+
+  .admin-group-messages {
+    padding: 10px 8px;
+  }
+
+  .admin-group-messages .message-row {
+    max-width: 100%;
+  }
+}

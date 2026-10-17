@@ -18,6 +18,12 @@ import {
   createAdminPrivateMessage,
   updateAdminPrivateMessage,
   deleteAdminPrivateMessage,
+
+  // banned members
+
+  banCommunityMember,
+  getBannedMembers,
+  unbanCommunityMember,
 } from "../controllers/adminController.js";
 
 
@@ -155,6 +161,25 @@ router.delete(
   "/announcements/:id",
   adminAuthMiddleware,
   deleteAnnouncement
+);
+
+
+router.get(
+  "/banned-members",
+  adminAuthMiddleware,
+  getBannedMembers
+);
+
+router.put(
+  "/members/:wallet/ban",
+  adminAuthMiddleware,
+  banCommunityMember
+);
+
+router.put(
+  "/members/:wallet/unban",
+  adminAuthMiddleware,
+  unbanCommunityMember
 );
 
 

@@ -1,0 +1,634 @@
+/* =====================================================
+   Community X – Announcements
+   ===================================================== */
+.cxchat-announcements {
+  --pink: #ff2bd6;
+  --pink-2: #e81ca8;
+  --purple: #7b1fd1;
+  --text-dim: #9fb0d9;
+  --card-bg: rgba(20, 8, 32, 0.72);
+  --card-border: rgba(160, 70, 200, 0.28);
+  --urgent: #ff4d6d;
+
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  color: #fff;
+  box-sizing: border-box;
+  /* the section itself scrolls inside the chat layout */
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 43, 214, 0.5) transparent;
+}
+
+.cxchat-announcements::-webkit-scrollbar {
+  width: 8px;
+}
+
+.cxchat-announcements::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cxchat-announcements::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ff2bd6, #7b1fd1);
+  border-radius: 8px;
+}
+
+.cxchat-announcements *,
+.cxchat-announcements *::before,
+.cxchat-announcements *::after {
+  box-sizing: border-box;
+}
+
+/* ================= Banner ================= */
+.cxchat-announcements-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 30px 34px;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid var(--card-border);
+  background:
+    linear-gradient(120deg, rgba(123, 31, 209, 0.38) 0%, rgba(232, 28, 168, 0.22) 45%, rgba(20, 8, 32, 0.85) 100%),
+    var(--card-bg);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 40px rgba(123, 31, 209, 0.18);
+  flex: 0 0 auto;
+  min-height: 130px;
+  height: auto;
+}
+
+/* Prevent any flex/fixed-height parent from squashing the sections */
+.cxchat-announcements > * {
+  flex-shrink: 0;
+}
+
+.cxchat-banner-glow {
+  position: absolute;
+  right: -80px;
+  top: -80px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 43, 214, 0.45), transparent 70%);
+  filter: blur(30px);
+  animation: cxchat-pulse 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.cxchat-announcements-banner-icon {
+  position: relative;
+  flex-shrink: 0;
+  width: 74px;
+  height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  font-size: 2rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  box-shadow: 0 8px 26px rgba(255, 43, 214, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.cxchat-announcements-banner-content {
+  position: relative;
+  min-width: 0;
+}
+
+.cxchat-announcements-eyebrow {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #ffc4f4;
+  background: rgba(255, 43, 214, 0.14);
+  border: 1px solid rgba(255, 43, 214, 0.35);
+}
+
+.cxchat-announcements-banner-content h2 {
+  margin: 0 0 6px;
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  background: linear-gradient(90deg, #ffffff 30%, #ff8ae9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.cxchat-announcements-banner-content p {
+  margin: 0;
+  max-width: 560px;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+/* ================= Heading ================= */
+.cxchat-announcements-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 0 4px;
+}
+
+.cxchat-announcements-heading h3 {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.cxchat-announcements-heading p {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-dim);
+}
+
+.cxchat-announcements-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffd2f7;
+  background: rgba(123, 31, 209, 0.28);
+  border: 1px solid rgba(190, 90, 240, 0.45);
+  white-space: nowrap;
+}
+
+.cxchat-announcements-count i {
+  color: var(--pink);
+}
+
+/* ================= List ================= */
+.cxchat-announcements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ================= Card ================= */
+.cxchat-announcement-card {
+  --accent: var(--pink);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px 24px 18px 28px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  animation: cxchat-rise 0.5s ease forwards;
+  transition: transform 0.25s ease, border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+/* left accent bar */
+.cxchat-announcement-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: linear-gradient(180deg, var(--accent), var(--purple));
+  box-shadow: 0 0 18px var(--accent);
+}
+
+/* soft corner glow */
+.cxchat-announcement-card::after {
+  content: "";
+  position: absolute;
+  right: -60px;
+  top: -60px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent), transparent 70%);
+  opacity: 0.12;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.cxchat-announcement-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 70, 220, 0.5);
+  box-shadow: 0 12px 36px rgba(220, 30, 200, 0.2);
+}
+
+.cxchat-announcement-card:hover::after {
+  opacity: 0.22;
+}
+
+.cxchat-tone-important {
+  --accent: #b44dff;
+}
+
+.cxchat-tone-urgent {
+  --accent: var(--urgent);
+}
+
+.cxchat-announcement-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cxchat-announcement-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #ffd2f7;
+  background: rgba(255, 43, 214, 0.12);
+  border: 1px solid rgba(255, 43, 214, 0.32);
+}
+
+.cxchat-announcement-category i {
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+/* priority badge */
+.cxchat-announcement-priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #d9c7f5;
+  background: rgba(159, 176, 217, 0.12);
+  border: 1px solid rgba(159, 176, 217, 0.3);
+}
+
+.cxchat-priority-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.cxchat-announcement-priority-important {
+  color: #e2b8ff;
+  background: rgba(123, 31, 209, 0.28);
+  border-color: rgba(180, 77, 255, 0.5);
+}
+
+.cxchat-announcement-priority-urgent {
+  color: #ffb3c1;
+  background: rgba(255, 77, 109, 0.16);
+  border-color: rgba(255, 77, 109, 0.5);
+}
+
+.cxchat-announcement-priority-urgent .cxchat-priority-dot {
+  animation: cxchat-blink 1.2s ease-in-out infinite;
+}
+
+/* text */
+.cxchat-announcement-title {
+  margin: 4px 0 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+
+.cxchat-announcement-message {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.7;
+  color: #b9c3e0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.cxchat-announcement-toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--pink);
+  cursor: pointer;
+  transition: color 0.2s ease, gap 0.2s ease;
+}
+
+.cxchat-announcement-toggle:hover {
+  color: #ff8ae9;
+  gap: 9px;
+}
+
+/* footer */
+.cxchat-announcement-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(160, 70, 200, 0.2);
+  font-size: 0.85rem;
+}
+
+.cxchat-announcement-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim);
+}
+
+.cxchat-announcement-date i {
+  color: var(--pink-2);
+}
+
+.cxchat-announcement-official {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #7dffb4;
+}
+
+/* ================= States ================= */
+.cxchat-announcements-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 50px 24px;
+  border-radius: 20px;
+  border: 1px dashed var(--card-border);
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+}
+
+.cxchat-state-icon {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  font-size: 1.9rem;
+  color: var(--pink);
+  background: rgba(255, 43, 214, 0.1);
+  border: 1px solid rgba(255, 43, 214, 0.35);
+  box-shadow: 0 0 28px rgba(255, 43, 214, 0.25);
+}
+
+.cxchat-announcements-state h4 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.cxchat-announcements-state p {
+  margin: 0;
+  max-width: 420px;
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.cxchat-announcements-error .cxchat-state-icon {
+  color: var(--urgent);
+  background: rgba(255, 77, 109, 0.1);
+  border-color: rgba(255, 77, 109, 0.4);
+  box-shadow: 0 0 28px rgba(255, 77, 109, 0.25);
+}
+
+.cxchat-announcements-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px 26px;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(90deg, var(--pink), var(--purple));
+  box-shadow: 0 6px 22px rgba(255, 43, 214, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cxchat-announcements-retry:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(255, 43, 214, 0.5);
+}
+
+/* ================= Skeleton ================= */
+.cxchat-announcement-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px 28px;
+  border-radius: 18px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+}
+
+.cxchat-skel {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    rgba(160, 70, 200, 0.1) 25%,
+    rgba(255, 43, 214, 0.22) 50%,
+    rgba(160, 70, 200, 0.1) 75%
+  );
+  background-size: 200% 100%;
+  animation: cxchat-shimmer 1.6s linear infinite;
+}
+
+.cxchat-skel-chip {
+  width: 150px;
+  height: 22px;
+  border-radius: 999px;
+}
+
+.cxchat-skel-title {
+  width: 55%;
+  height: 22px;
+}
+
+.cxchat-skel-line {
+  width: 100%;
+  height: 14px;
+}
+
+.cxchat-skel-short {
+  width: 70%;
+}
+
+/* ================= Footer note ================= */
+.cxchat-announcements-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  font-size: 0.88rem;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.cxchat-announcements-footer i {
+  font-size: 1.1rem;
+  color: var(--pink);
+}
+
+/* ================= Animations ================= */
+@keyframes cxchat-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cxchat-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes cxchat-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes cxchat-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+@keyframes cxchat-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ================= Responsive ================= */
+@media (max-width: 767.98px) {
+  .cxchat-announcements {
+    padding: 14px;
+    gap: 18px;
+  }
+
+  .cxchat-announcements-banner {
+    gap: 16px;
+    padding: 22px 20px;
+    border-radius: 18px;
+  }
+
+  .cxchat-announcements-banner-icon {
+    width: 58px;
+    height: 58px;
+    font-size: 1.6rem;
+    border-radius: 16px;
+  }
+
+  .cxchat-announcements-heading h3 {
+    font-size: 1.3rem;
+  }
+
+  .cxchat-announcement-card {
+    padding: 18px 18px 16px 22px;
+  }
+
+  .cxchat-announcement-title {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .cxchat-announcements-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cxchat-announcements-banner-content p {
+    font-size: 0.9rem;
+  }
+
+  .cxchat-announcements-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cxchat-announcement-message {
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+
+  .cxchat-announcement-card-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .cxchat-announcements-state {
+    padding: 36px 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cxchat-announcements *,
+  .cxchat-announcements *::before,
+  .cxchat-announcements *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .cxchat-announcement-card {
+    opacity: 1;
+  }
+}

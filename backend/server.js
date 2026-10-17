@@ -6,6 +6,8 @@ import { Server } from "socket.io";
 
 import app from "./app.js";
 import connectDB from "./config/db.js";
+import Admin from "./models/Admin.js";
+import CommunityUser from "./models/CommunityUser.js";
 
 dotenv.config();
 
@@ -28,15 +30,12 @@ const io = new Server(server, {
   },
 });
 
-// ============================================================
-// MAKE SOCKET.IO AVAILABLE INSIDE EXPRESS CONTROLLERS
-// ============================================================
-
+// Make Socket.IO available inside Express controllers.
 app.set("io", io);
 
 // ============================================================
 // ONLINE PRESENCE TRACKER
-// Tracks multiple tabs/devices for the same user.
+// Supports multiple tabs/devices for the same identity.
 // ============================================================
 
 const activeUsers = new Map();
@@ -76,29 +75,85 @@ const registerPresence = (socket, userType, identity) => {
   }
 };
 
+// ============================================================
+// REMOVE SOCKET FROM PRESENCE
+// ============================================================
+
 const removePresence = (socket) => {
   if (!socket.presenceKey) return;
 
-  const user = activeUsers.get(socket.presenceKey);
+  const key = socket.presenceKey;
+  const user = activeUsers.get(key);
 
-  if (!user) {
-    socket.presenceKey = null;
-    return;
-  }
+  // Clear the socket reference even if the presence record
+  // is missing.
+  socket.presenceKey = null;
+
+  if (!user) return;
 
   user.sockets.delete(socket.id);
 
   // Another tab/device is still connected.
-  if (user.sockets.size > 0) {
-    socket.presenceKey = null;
-    return;
-  }
+  if (user.sockets.size > 0) return;
 
   user.lastSeen = new Date().toISOString();
 
   io.emit("presence-update", getPresencePayload(user));
+};
 
-  socket.presenceKey = null;
+// ============================================================
+// CLEAR PREVIOUS SOCKET AUTHENTICATION
+// ============================================================
+
+const clearSocketAuthentication = (socket) => {
+  removePresence(socket);
+
+  // Remove old room memberships.
+  // Socket.IO automatically maintains the socket's own room.
+  for (const room of [...socket.rooms]) {
+    if (room !== socket.id) {
+      socket.leave(room);
+    }
+  }
+
+  // Clear trusted identity information.
+  delete socket.walletAddress;
+  delete socket.adminId;
+  delete socket.adminRole;
+  delete socket.userType;
+};
+
+// ============================================================
+// JWT HELPERS
+// ============================================================
+
+const verifySocketToken = (token) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+
+  if (typeof token !== "string" || !token.trim()) {
+    throw new Error("Authentication token is required");
+  }
+
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+  if (!decoded || typeof decoded !== "object") {
+    throw new Error("Invalid authentication token");
+  }
+
+  return decoded;
+};
+
+// ============================================================
+// SEND PRESENCE SNAPSHOT
+// ============================================================
+
+const sendPresenceSnapshot = (socket) => {
+  socket.emit(
+    "presence-snapshot",
+    Array.from(activeUsers.values()).map(getPresencePayload)
+  );
 };
 
 // ============================================================
@@ -110,51 +165,84 @@ io.on("connection", (socket) => {
 
   // ==========================================================
   // MEMBER SOCKET AUTHENTICATION
+  //
   // Event: authenticate-socket
   // Room: wallet:<walletAddress>
   // ==========================================================
 
-  socket.on("authenticate-socket", ({ token } = {}) => {
+  socket.on("authenticate-socket", async ({ token } = {}) => {
+    // A failed re-authentication must not leave the socket
+    // authenticated as its previous identity.
+    clearSocketAuthentication(socket);
+
     try {
-      if (!token) {
+      const decoded = verifySocketToken(token);
+
+      // An admin token must never authenticate as a member.
+      if (decoded.role === "ADMIN") {
         socket.emit("socket-auth-error", {
-          message: "Authentication token is required",
+          message: "Member authentication required",
         });
+
         return;
       }
 
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET
-      );
-
       const walletAddress =
-        decoded.walletAddress?.toLowerCase().trim();
+        typeof decoded.walletAddress === "string"
+          ? decoded.walletAddress.toLowerCase().trim()
+          : "";
 
       if (!walletAddress) {
         socket.emit("socket-auth-error", {
-          message:
-            "Wallet address not found in authentication token",
+          message: "Wallet address not found in authentication token",
         });
+
         return;
       }
 
-      // If this socket was already authenticated, remove its
-      // previous presence before registering the new identity.
-      removePresence(socket);
+      // Check the database on every socket authentication.
+      // This also rejects banned members whose old JWT is
+      // still valid.
+      const member = await CommunityUser.findOne({
+        $expr: {
+          $eq: [{ $toLower: "$walletAddress" }, walletAddress],
+        },
+      }).select("walletAddress isBanned banReason bannedAt");
+
+      // IMPORTANT: check whether the member exists FIRST.
+      if (!member) {
+        socket.emit("socket-auth-error", {
+          message: "Community member not found",
+        });
+
+        return;
+      }
+
+      // Reject banned members, including those with an
+      // existing, unexpired JWT.
+      if (member.isBanned) {
+        clearSocketAuthentication(socket);
+
+        socket.emit("socket-auth-error", {
+          code: "COMMUNITY_MEMBER_BANNED",
+          message: "Your Community X access has been suspended.",
+          reason: member.banReason || "No reason provided",
+          bannedAt: member.bannedAt,
+        });
+
+        return;
+      }
 
       const walletRoom = `wallet:${walletAddress}`;
-
-      socket.join(walletRoom);
 
       socket.walletAddress = walletAddress;
       socket.userType = "MEMBER";
 
+      await socket.join(walletRoom);
+
       registerPresence(socket, "MEMBER", walletAddress);
 
-      console.log(
-        `Member socket authenticated: ${walletAddress}`
-      );
+      console.log(`Member socket authenticated: ${walletAddress}`);
 
       socket.emit("socket-authenticated", {
         success: true,
@@ -163,91 +251,93 @@ io.on("connection", (socket) => {
         role: "MEMBER",
       });
 
-      // Send current presence to this newly authenticated client.
-      socket.emit(
-        "presence-snapshot",
-        Array.from(activeUsers.values()).map(getPresencePayload)
-      );
+      sendPresenceSnapshot(socket);
     } catch (error) {
-      console.error("Socket authentication error:", error);
+      console.error(
+        "Member socket authentication failed:",
+        error.message
+      );
+
+      clearSocketAuthentication(socket);
 
       socket.emit("socket-auth-error", {
-        message: "Invalid or expired authentication token",
+        message: "Invalid or expired member authentication token",
       });
     }
   });
 
   // ==========================================================
   // ADMIN SOCKET AUTHENTICATION
+  //
   // Event: authenticate-admin-socket
+  //
   // Rooms:
-  //   admin:<adminId>
-  //   wallet:admin:<adminId>
+  // admin:<adminId>
+  // wallet:admin:<adminId>
   // ==========================================================
 
   socket.on(
     "authenticate-admin-socket",
-    ({ token } = {}) => {
+    async ({ token } = {}) => {
+      // Remove any previous member/admin identity and rooms.
+      clearSocketAuthentication(socket);
+
       try {
-        if (!token) {
-          socket.emit("admin-socket-auth-error", {
-            message: "Admin authentication token is required",
-          });
-          return;
-        }
+        const decoded = verifySocketToken(token);
 
-        const decoded = jwt.verify(
-          token,
-          process.env.JWT_SECRET
-        );
-
-        const adminId = decoded.adminId;
-
-        if (!adminId) {
-          socket.emit("admin-socket-auth-error", {
-            message: "Admin ID not found in authentication token",
-          });
-          return;
-        }
-
-        if (decoded.role !== "ADMIN") {
+        // Only an explicit ADMIN role is accepted.
+        if (
+          decoded.role !== "ADMIN" ||
+          typeof decoded.adminId !== "string" ||
+          !decoded.adminId.trim()
+        ) {
           socket.emit("admin-socket-auth-error", {
             message: "Admin access denied",
           });
+
           return;
         }
 
-        const normalizedAdminId = String(adminId)
-          .toLowerCase()
-          .trim();
+        // Admin model stores adminId in uppercase.
+        const normalizedAdminId = decoded.adminId.trim().toUpperCase();
 
-        // If this socket was already authenticated, remove its
-        // previous presence before registering the new identity.
-        removePresence(socket);
+        // Verify that the administrator still exists and
+        // has an active account in MongoDB.
+        const admin = await Admin.findOne({
+          adminId: normalizedAdminId,
+          role: "ADMIN",
+          isActive: true,
+        }).select("adminId username role isActive");
 
-        const adminRoom = `admin:${normalizedAdminId}`;
+        if (!admin) {
+          socket.emit("admin-socket-auth-error", {
+            message: "Admin account is inactive or no longer exists",
+          });
 
-        // Keep this compatibility room for existing private chat.
-        const adminPrivateRoom =
-          `wallet:admin:${normalizedAdminId}`;
+          return;
+        }
 
-        socket.join(adminRoom);
-        socket.join(adminPrivateRoom);
+        // Preserve the lowercase identity used by existing
+        // Community X messaging and presence rooms.
+        const adminIdentity = admin.adminId.toLowerCase();
 
-        socket.adminId = normalizedAdminId;
-        socket.adminRole = decoded.role;
+        const adminRoom = `admin:${adminIdentity}`;
+
+        // Keep this room for existing private chat compatibility.
+        const adminPrivateRoom = `wallet:admin:${adminIdentity}`;
+
+        socket.adminId = adminIdentity;
+        socket.adminRole = admin.role;
         socket.userType = "ADMIN";
 
-        registerPresence(
-          socket,
-          "ADMIN",
-          normalizedAdminId
-        );
+        await Promise.all([
+          socket.join(adminRoom),
+          socket.join(adminPrivateRoom),
+        ]);
 
-        console.log(
-          `Admin socket authenticated: ${normalizedAdminId}`
-        );
+        registerPresence(socket, "ADMIN", adminIdentity);
 
+        console.log(`Admin socket authenticated: ${adminIdentity}`);
         console.log(`Admin joined room: ${adminRoom}`);
         console.log(
           `Admin joined private compatibility room: ${adminPrivateRoom}`
@@ -255,43 +345,43 @@ io.on("connection", (socket) => {
 
         socket.emit("admin-socket-authenticated", {
           success: true,
-          adminId: normalizedAdminId,
-          role: decoded.role,
+          adminId: adminIdentity,
+          role: admin.role,
           room: adminRoom,
           privateRoom: adminPrivateRoom,
         });
 
-        // Send current presence to this newly authenticated client.
-        socket.emit(
-          "presence-snapshot",
-          Array.from(activeUsers.values()).map(getPresencePayload)
-        );
+        sendPresenceSnapshot(socket);
       } catch (error) {
         console.error(
-          "Admin socket authentication error:",
-          error
+          "Admin socket authentication failed:",
+          error.message
         );
 
+        // Fail closed: don't retain any previous identity.
+        clearSocketAuthentication(socket);
+
         socket.emit("admin-socket-auth-error", {
-          message:
-            "Invalid or expired admin authentication token",
+          message: "Invalid or expired admin authentication token",
         });
       }
     }
   );
 
   // ==========================================================
-  // REQUEST CURRENT ONLINE/OFFLINE STATUS
-  // Clients can request this after authentication.
+  // REQUEST PRESENCE SNAPSHOT
+  // Only authenticated clients may request it.
   // ==========================================================
 
   socket.on("get-presence-snapshot", () => {
-    if (!socket.userType) return;
+    if (
+      socket.userType !== "MEMBER" &&
+      socket.userType !== "ADMIN"
+    ) {
+      return;
+    }
 
-    socket.emit(
-      "presence-snapshot",
-      Array.from(activeUsers.values()).map(getPresencePayload)
-    );
+    sendPresenceSnapshot(socket);
   });
 
   // ==========================================================
@@ -309,9 +399,7 @@ io.on("connection", (socket) => {
     }
 
     if (socket.userType === "ADMIN") {
-      console.log(
-        `Admin socket disconnected: ${socket.adminId}`
-      );
+      console.log(`Admin socket disconnected: ${socket.adminId}`);
     }
 
     removePresence(socket);
@@ -324,6 +412,12 @@ io.on("connection", (socket) => {
 
 const startServer = async () => {
   try {
+    if (!process.env.JWT_SECRET) {
+      throw new Error(
+        "JWT_SECRET is missing from backend environment variables"
+      );
+    }
+
     await connectDB();
 
     server.listen(PORT, () => {
@@ -337,4 +431,3 @@ const startServer = async () => {
 };
 
 startServer();
-

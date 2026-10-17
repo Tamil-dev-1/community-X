@@ -1,3 +1,4 @@
+
 import React, {
   useEffect,
   useRef,
@@ -13,6 +14,12 @@ import {
 } from "wagmi";
 
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+
+import {
+  setCommunityAuth,
+  setCommunityUser,
+} from "../features/auth/authSlice";
 
 import "./OnboardingPage.css";
 
@@ -31,7 +38,7 @@ const API_URL =
 const STAGES = ["connect", "sign", "verified"];
 
 // =====================================================
-// HELPER
+// HELPERS
 // =====================================================
 
 function truncateAddress(address) {
@@ -53,20 +60,17 @@ function useParticleNetwork(canvasRef, containerRef) {
     const canvas = canvasRef.current;
     const container = containerRef.current;
 
-    if (!canvas || !container) {
-      return undefined;
-    }
+    if (!canvas || !container) return undefined;
 
     const ctx = canvas.getContext("2d");
+
+    if (!ctx) return undefined;
 
     const reduceMotion = window
       .matchMedia("(prefers-reduced-motion: reduce)")
       .matches;
 
-    const dpr = Math.min(
-      window.devicePixelRatio || 1,
-      2
-    );
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     let width = 0;
     let height = 0;
@@ -80,36 +84,17 @@ function useParticleNetwork(canvasRef, containerRef) {
     function buildNodes() {
       const count = Math.max(
         18,
-        Math.min(
-          46,
-          Math.floor((width * height) / 24000)
-        )
+        Math.min(46, Math.floor((width * height) / 24000))
       );
 
-      nodes = Array.from(
-        { length: count },
-        () => ({
-          x: Math.random() * width,
-          y: Math.random() * height,
-
-          vx:
-            (Math.random() - 0.5) *
-            0.2,
-
-          vy:
-            (Math.random() - 0.5) *
-            0.2,
-
-          r:
-            Math.random() * 1.5 +
-            0.8,
-
-          hue:
-            Math.random() > 0.7
-              ? "cyan"
-              : "gold",
-        })
-      );
+      nodes = Array.from({ length: count }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.2,
+        vy: (Math.random() - 0.5) * 0.2,
+        r: Math.random() * 1.5 + 0.8,
+        hue: Math.random() > 0.7 ? "cyan" : "gold",
+      }));
     }
 
     function resize() {
@@ -122,78 +107,37 @@ function useParticleNetwork(canvasRef, containerRef) {
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
 
-      ctx.setTransform(
-        dpr,
-        0,
-        0,
-        dpr,
-        0,
-        0
-      );
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       buildNodes();
     }
 
     function drawFrame() {
-      ctx.clearRect(
-        0,
-        0,
-        width,
-        height
-      );
+      ctx.clearRect(0, 0, width, height);
 
-      const maxDist = Math.min(
-        140,
-        width / 5
-      );
+      const maxDist = Math.min(140, width / 5);
 
       nodes.forEach((node) => {
         node.x += node.vx;
         node.y += node.vy;
 
-        if (
-          node.x < 0 ||
-          node.x > width
-        ) {
-          node.vx *= -1;
-        }
-
-        if (
-          node.y < 0 ||
-          node.y > height
-        ) {
-          node.vy *= -1;
-        }
+        if (node.x < 0 || node.x > width) node.vx *= -1;
+        if (node.y < 0 || node.y > height) node.vy *= -1;
       });
 
-      for (
-        let i = 0;
-        i < nodes.length;
-        i += 1
-      ) {
-        for (
-          let j = i + 1;
-          j < nodes.length;
-          j += 1
-        ) {
+      for (let i = 0; i < nodes.length; i += 1) {
+        for (let j = i + 1; j < nodes.length; j += 1) {
           const a = nodes[i];
           const b = nodes[j];
 
           const dx = a.x - b.x;
           const dy = a.y - b.y;
-
-          const dist = Math.sqrt(
-            dx * dx + dy * dy
-          );
+          const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < maxDist) {
-            const opacity =
-              (1 - dist / maxDist) *
-              0.3;
+            const opacity = (1 - dist / maxDist) * 0.3;
 
-            ctx.strokeStyle =
-              `${magenta}${opacity})`;
-
+            ctx.strokeStyle = `${magenta}${opacity})`;
             ctx.lineWidth = 0.6;
 
             ctx.beginPath();
@@ -205,68 +149,34 @@ function useParticleNetwork(canvasRef, containerRef) {
       }
 
       nodes.forEach((node) => {
-        const col =
-          node.hue === "cyan"
-            ? cyan
-            : gold;
+        const col = node.hue === "cyan" ? cyan : gold;
 
         ctx.beginPath();
-
-        ctx.fillStyle =
-          `${col}0.85)`;
-
-        ctx.arc(
-          node.x,
-          node.y,
-          node.r,
-          0,
-          Math.PI * 2
-        );
-
+        ctx.fillStyle = `${col}0.85)`;
+        ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.beginPath();
-
-        ctx.fillStyle =
-          `${col}0.12)`;
-
-        ctx.arc(
-          node.x,
-          node.y,
-          node.r * 4,
-          0,
-          Math.PI * 2
-        );
-
+        ctx.fillStyle = `${col}0.12)`;
+        ctx.arc(node.x, node.y, node.r * 4, 0, Math.PI * 2);
         ctx.fill();
       });
 
       if (!reduceMotion) {
-        frameId =
-          requestAnimationFrame(
-            drawFrame
-          );
+        frameId = requestAnimationFrame(drawFrame);
       }
     }
 
     resize();
     drawFrame();
 
-    window.addEventListener(
-      "resize",
-      resize
-    );
+    window.addEventListener("resize", resize);
 
     return () => {
-      window.removeEventListener(
-        "resize",
-        resize
-      );
+      window.removeEventListener("resize", resize);
 
-      if (frameId) {
-        cancelAnimationFrame(
-          frameId
-        );
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
       }
     };
   }, [canvasRef, containerRef]);
@@ -280,41 +190,24 @@ function useGoogleFonts() {
   useEffect(() => {
     const id = "cx-google-fonts";
 
-    if (document.getElementById(id)) {
-      return;
-    }
+    if (document.getElementById(id)) return;
 
-    const preconnect1 =
-      document.createElement("link");
-
+    const preconnect1 = document.createElement("link");
     preconnect1.rel = "preconnect";
-    preconnect1.href =
-      "https://fonts.googleapis.com";
+    preconnect1.href = "https://fonts.googleapis.com";
 
-    const preconnect2 =
-      document.createElement("link");
-
+    const preconnect2 = document.createElement("link");
     preconnect2.rel = "preconnect";
-    preconnect2.href =
-      "https://fonts.gstatic.com";
+    preconnect2.href = "https://fonts.gstatic.com";
+    preconnect2.crossOrigin = "anonymous";
 
-    preconnect2.crossOrigin =
-      "anonymous";
-
-    const stylesheet =
-      document.createElement("link");
-
+    const stylesheet = document.createElement("link");
     stylesheet.id = id;
     stylesheet.rel = "stylesheet";
-
     stylesheet.href =
       "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap";
 
-    document.head.append(
-      preconnect1,
-      preconnect2,
-      stylesheet
-    );
+    document.head.append(preconnect1, preconnect2, stylesheet);
   }, []);
 }
 
@@ -323,43 +216,22 @@ function useGoogleFonts() {
 // =====================================================
 
 export default function OnboardingPage() {
-  // ===================================================
-  // NAVIGATION
-  // ===================================================
-
   const navigate = useNavigate();
-
-  // ===================================================
-  // REFS
-  // ===================================================
+  const dispatch = useDispatch();
 
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
 
-  // Prevent automatic signing
-  // from starting multiple times.
-  const autoSignStartedRef =
-    useRef(false);
-
-  // ===================================================
-  // CUSTOM HOOKS
-  // ===================================================
+  const autoSignStartedRef = useRef(false);
 
   useGoogleFonts();
+  useParticleNetwork(canvasRef, wrapRef);
 
-  useParticleNetwork(
-    canvasRef,
-    wrapRef
-  );
-
-  // ===================================================
+  // ---------------------------------------------------
   // WAGMI
-  // ===================================================
+  // ---------------------------------------------------
 
-  const {
-    address,
-    isConnected,
-  } = useAccount();
+  const { address, isConnected } = useAccount();
 
   const {
     connect,
@@ -368,585 +240,313 @@ export default function OnboardingPage() {
     error: connectError,
   } = useConnect();
 
-  const { disconnect } =
-    useDisconnect();
+  const { disconnect } = useDisconnect();
 
   const {
     signMessageAsync,
     reset: resetSignature,
   } = useSignMessage();
 
-  // ===================================================
+  // ---------------------------------------------------
   // LOCAL STATE
-  // ===================================================
+  // ---------------------------------------------------
 
-  const [status, setStatus] =
-    useState("idle");
+  const [status, setStatus] = useState("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [signature, setSignature] = useState(null);
+  const [authMessage, setAuthMessage] = useState("");
+  const [profileChecking, setProfileChecking] = useState(false);
 
-  const [errorMsg, setErrorMsg] =
-    useState("");
-
-  const [signature, setSignature] =
-    useState(null);
-
-  const [authMessage, setAuthMessage] =
-    useState("");
-
-  const [
-    profileChecking,
-    setProfileChecking,
-  ] = useState(false);
-
-  // ===================================================
+  // ---------------------------------------------------
   // REQUEST NONCE
-  // ===================================================
+  // ---------------------------------------------------
 
-  const requestNonce =
-    useCallback(
-      async (walletAddress) => {
-        if (!walletAddress) {
-          throw new Error(
-            "Wallet address is missing."
-          );
+  const requestNonce = useCallback(async (walletAddress) => {
+    if (!walletAddress) {
+      throw new Error("Wallet address is missing.");
+    }
+
+    const response = await fetch(`${API_URL}/api/auth/web3/nonce`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: walletAddress }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(
+        data.message || "Unable to create authentication message."
+      );
+    }
+
+    return data.message;
+  }, []);
+
+  // ---------------------------------------------------
+  // CHECK COMMUNITY PROFILE
+  // ---------------------------------------------------
+
+  const checkCommunityProfile = useCallback(async () => {
+    setProfileChecking(true);
+
+    try {
+      const token = localStorage.getItem("communityXToken");
+
+      if (!token) {
+        throw new Error(
+          "Authentication token is missing. Please connect your wallet again."
+        );
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/community/profile/check`,
+        {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
         }
+      );
 
-        const response =
-          await fetch(
-            `${API_URL}/api/auth/web3/nonce`,
-            {
-              method: "POST",
+      const data = await response.json();
 
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || "Unable to check Community X profile."
+        );
+      }
 
-              body: JSON.stringify({
-                address:
-                  walletAddress,
-              }),
-            }
-          );
+      return data;
+    } finally {
+      setProfileChecking(false);
+    }
+  }, []);
 
-        const data =
-          await response.json();
+  // ---------------------------------------------------
+  // SIGN AND VERIFY WALLET
+  // ---------------------------------------------------
 
-        if (
-          !response.ok ||
-          !data.success
-        ) {
-          throw new Error(
-            data.message ||
-              "Unable to create authentication message."
-          );
-        }
+  const handleSignAndVerify = useCallback(
+    async (walletAddress) => {
+      if (!walletAddress) {
+        setErrorMsg("Please connect your wallet first.");
+        setStatus("error");
+        return;
+      }
 
-        return data.message;
-      },
-      []
-    );
+      try {
+        setErrorMsg("");
+        setStatus("signing");
 
-  // ===================================================
-  // CHECK COMMUNITY X PROFILE
-  // ===================================================
+        // 1. Request authentication message.
+        const message = await requestNonce(walletAddress);
+        setAuthMessage(message);
 
-  const checkCommunityProfile =
-    useCallback(
-      async () => {
-        setProfileChecking(true);
+        // 2. Ask the wallet to sign.
+        const walletSignature = await signMessageAsync({ message });
+        setSignature(walletSignature);
 
-        try {
-          // Get JWT from Local Storage
-          const token =
-            localStorage.getItem(
-              "communityXToken"
-            );
+        // 3. Verify wallet and membership.
+        setStatus("verifying");
 
-          // JWT is required
-          if (!token) {
-            throw new Error(
-              "Authentication token is missing. Please connect your wallet again."
-            );
+        const response = await fetch(
+          `${API_URL}/api/auth/web3/verify`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              address: walletAddress,
+              message,
+              signature: walletSignature,
+            }),
           }
+        );
 
-          // Protected API request
-          const response =
-            await fetch(
-              `${API_URL}/api/community/profile/check`,
-              {
-                method: "GET",
+        const data = await response.json();
 
-                headers: {
-                  Authorization:
-                    `Bearer ${token}`,
-                },
-              }
-            );
-
-          const data =
-            await response.json();
-
-          console.log(
-            "Community Profile Check:",
-            data
-          );
-
-          if (
-            !response.ok ||
-            !data.success
-          ) {
-            throw new Error(
+        if (!response.ok || !data.success) {
+          if (data.code === "NOT_VALUTX_MEMBER") {
+            setErrorMsg(
               data.message ||
-                "Unable to check Community X profile."
+                "This wallet is not registered as a ValutX member."
             );
+            setStatus("denied");
+            return;
           }
 
-          return data;
-        } finally {
-          setProfileChecking(false);
-        }
-      },
-      []
-    );
-
-  // ===================================================
-  // SIGN + VERIFY WALLET
-  // ===================================================
-
-  const handleSignAndVerify =
-    useCallback(
-      async (walletAddress) => {
-        if (!walletAddress) {
-          setErrorMsg(
-            "Please connect your wallet first."
+          throw new Error(
+            data.message || "Wallet verification failed."
           );
+        }
 
-          setStatus("error");
+        if (!data.token) {
+          throw new Error(
+            "Authentication token was not received from the server."
+          );
+        }
+
+        // 4. Confirm membership before saving authenticated state.
+        if (!data.isValutXMember) {
+          setErrorMsg(
+            "This wallet is not registered as a ValutX member."
+          );
+          setStatus("denied");
+          return;
+        }
+
+        // 5. Save the verified wallet and JWT.
+        const verifiedWallet = (
+          data.walletAddress || walletAddress
+        ).toLowerCase();
+
+        localStorage.setItem("communityXToken", data.token);
+        localStorage.setItem("communityXWallet", verifiedWallet);
+
+        dispatch(
+          setCommunityAuth({
+            walletAddress: verifiedWallet,
+            token: data.token,
+            user: null,
+          })
+        );
+
+        // 6. Check if the Community X profile exists.
+        const profileData = await checkCommunityProfile();
+        const profileExists = Boolean(profileData.exists);
+        const communityUser = profileData.user || null;
+
+        if (profileExists && communityUser) {
+          dispatch(setCommunityUser(communityUser));
+        }
+
+        // 7. Navigate to the correct page.
+        setStatus("verified");
+
+        if (!profileExists) {
+          setTimeout(() => {
+            navigate("/create-profile", {
+              state: { walletAddress: verifiedWallet },
+            });
+          }, 800);
 
           return;
         }
 
-        try {
-          setErrorMsg("");
+        setTimeout(() => {
+          navigate("/welcome", {
+            state: {
+              walletAddress: verifiedWallet,
+              communityUser,
+            },
+          });
+        }, 800);
+      } catch (error) {
+        console.error("Wallet authentication error:", error);
 
-          // ==========================================
-          // STEP 1
-          // Request authentication message
-          // ==========================================
-
-          setStatus("signing");
-
-          const message =
-            await requestNonce(
-              walletAddress
-            );
-
-          setAuthMessage(message);
-
-          // ==========================================
-          // STEP 2
-          // Ask wallet to sign
-          // ==========================================
-
-          const walletSignature =
-            await signMessageAsync({
-              message,
-            });
-
-          setSignature(
-            walletSignature
-          );
-
-          // ==========================================
-          // STEP 3
-          // Verify wallet + ValutX membership
-          // ==========================================
-
-          setStatus("verifying");
-
-          const response =
-            await fetch(
-              `${API_URL}/api/auth/web3/verify`,
-              {
-                method: "POST",
-
-                headers: {
-                  "Content-Type":
-                    "application/json",
-                },
-
-                body: JSON.stringify({
-                  address:
-                    walletAddress,
-
-                  message,
-
-                  signature:
-                    walletSignature,
-                }),
-              }
-            );
-
-          const data =
-            await response.json();
-
-          // ==========================================
-          // DEBUG
-          // Check JWT response from backend
-          // ==========================================
-
-          console.log(
-            "Web3 Verify Response:",
-            data
-          );
-
-          console.log(
-            "JWT Token:",
-            data.token
-          );
-
-          // ==========================================
-          // VERIFICATION FAILED
-          // ==========================================
-
-          if (
-            !response.ok ||
-            !data.success
-          ) {
-            if (
-              data.code ===
-              "NOT_VALUTX_MEMBER"
-            ) {
-              setErrorMsg(
-                data.message ||
-                  "This wallet is not registered as a ValutX member."
-              );
-
-              setStatus("denied");
-
-              return;
-            }
-
-            throw new Error(
-              data.message ||
-                "Wallet verification failed."
-            );
-          }
-
-          // ==========================================
-          // CHECK JWT
-          // ==========================================
-
-          if (!data.token) {
-            throw new Error(
-              "Authentication token was not received from the server."
-            );
-          }
-
-          // ==========================================
-          // SAVE JWT
-          // ==========================================
-
-          localStorage.setItem(
-            "communityXToken",
-            data.token
-          );
-
-          localStorage.setItem(
-            "communityXWallet",
-            data.walletAddress.toLowerCase()
-          );
-
-          console.log(
-            "JWT saved successfully."
-          );
-
-          // ==========================================
-          // STEP 4
-          // CONFIRM VALUTX MEMBERSHIP
-          // ==========================================
-
-          if (!data.isValutXMember) {
-            setErrorMsg(
-              "This wallet is not registered as a ValutX member."
-            );
-
-            setStatus("denied");
-
-            return;
-          }
-
-          // ==========================================
-          // STEP 5
-          // CHECK COMMUNITY X PROFILE
-          // ==========================================
-
-          /*
-            IMPORTANT:
-
-            Being a ValutX member does NOT mean
-            the user already has a Community X profile.
-
-            Every ValutX member can be a NEW
-            Community X user.
-
-            The backend now gets the wallet address
-            from the verified JWT.
-
-            We do NOT send walletAddress
-            in the URL anymore.
-          */
-
-          const profileData =
-            await checkCommunityProfile();
-
-          console.log(
-            "Community Profile Check:",
-            profileData
-          );
-
-          // ==========================================
-          // STEP 6
-          // PROFILE RESULT
-          // ==========================================
-
-          const profileExists =
-            Boolean(
-              profileData.exists
-            );
-
-          // ==========================================
-          // STEP 7
-          // VERIFICATION COMPLETE
-          // ==========================================
-
-          setStatus("verified");
-
-          // ==========================================
-          // CASE 1: NEW COMMUNITY X USER
-          // ==========================================
-
-          if (!profileExists) {
-            /*
-              ValutX member: YES
-              Community X profile: NO
-
-              Therefore:
-
-              → New Community X user
-              → Open Profile page
-              → User creates Community X profile
-            */
-
-            setTimeout(() => {
-              navigate(
-                "/create-profile",
-                {
-                  state: {
-                    walletAddress:
-                      walletAddress,
-                  },
-                }
-              );
-            }, 800);
-
-            return;
-          }
-
-          // ==========================================
-          // CASE 2: EXISTING COMMUNITY X USER
-          // ==========================================
-
-          /*
-            ValutX member: YES
-            Community X profile: YES
-
-            Therefore:
-
-            → Existing Community X user
-            → Skip profile page
-            → Open Community chat directly
-          */
-
-          setTimeout(() => {
-            navigate(
-              "/community-chat",
-              {
-                state: {
-                  walletAddress:
-                    walletAddress,
-
-                  communityUser:
-                    profileData.user ||
-                    null,
-                },
-              }
-            );
-          }, 800);
-        } catch (error) {
-          console.error(
-            "Wallet authentication error:",
-            error
-          );
-
-          setErrorMsg(
-            error?.shortMessage ||
-              error?.message ||
-              "Wallet verification failed."
-          );
-
-          setStatus("error");
-        }
-      },
-      [
-        requestNonce,
-        signMessageAsync,
-        checkCommunityProfile,
-        navigate,
-      ]
-    );
-
-  // ===================================================
-  // CONNECT WALLET
-  // ===================================================
-
-  const handleConnect =
-    useCallback(() => {
-      setErrorMsg("");
-
-      setStatus("connecting");
-
-      autoSignStartedRef.current =
-        false;
-
-      const connector =
-        connectors[0];
-
-      if (!connector) {
         setErrorMsg(
-          "No compatible wallet was found."
+          error?.shortMessage ||
+            error?.message ||
+            "Wallet verification failed."
         );
 
         setStatus("error");
-
-        return;
       }
+    },
+    [
+      requestNonce,
+      signMessageAsync,
+      checkCommunityProfile,
+      navigate,
+      dispatch,
+    ]
+  );
 
-      connect(
-        { connector },
+  // ---------------------------------------------------
+  // CONNECT WALLET
+  // ---------------------------------------------------
 
-        {
-          onSuccess: () => {
-            /*
-              Don't sign here.
+  const handleConnect = useCallback(() => {
+    setErrorMsg("");
+    setStatus("connecting");
+    autoSignStartedRef.current = false;
 
-              First Wagmi updates:
+    const connector = connectors[0];
 
-              isConnected
-              address
-
-              Then the useEffect below
-              automatically starts signing.
-            */
-
-            setStatus("connected");
-          },
-
-          onError: (error) => {
-            setErrorMsg(
-              error?.shortMessage ||
-                error?.message ||
-                "Wallet connection failed."
-            );
-
-            setStatus("error");
-          },
-        }
-      );
-    }, [
-      connect,
-      connectors,
-    ]);
-
-  // ===================================================
-  // AUTOMATIC SIGN AFTER CONNECTION
-  // ===================================================
-
-  useEffect(() => {
-    if (
-      status !== "connected" ||
-      !isConnected ||
-      !address
-    ) {
-      return;
-    }
-
-    // Prevent duplicate signing requests
-    if (
-      autoSignStartedRef.current
-    ) {
-      return;
-    }
-
-    autoSignStartedRef.current =
-      true;
-
-    handleSignAndVerify(
-      address
-    );
-  }, [
-    status,
-    isConnected,
-    address,
-    handleSignAndVerify,
-  ]);
-
-  // ===================================================
-  // RESET
-  // ===================================================
-
-  const handleReset =
-    useCallback(() => {
-      resetSignature();
-
-      disconnect();
-
-      setSignature(null);
-
-      setAuthMessage("");
-
-      setErrorMsg("");
-
-      setProfileChecking(false);
-
-      autoSignStartedRef.current =
-        false;
-
-      setStatus("idle");
-    }, [
-      resetSignature,
-      disconnect,
-    ]);
-
-  // ===================================================
-  // CONNECTION ERROR
-  // ===================================================
-
-  useEffect(() => {
-    if (connectError) {
-      setErrorMsg(
-        connectError?.shortMessage ||
-          connectError?.message ||
-          "Unable to connect wallet."
-      );
-
+    if (!connector) {
+      setErrorMsg("No compatible wallet was found.");
       setStatus("error");
+      return;
     }
+
+    connect(
+      { connector },
+      {
+        onSuccess: () => {
+          // The effect below starts signing after Wagmi updates.
+          setStatus("connected");
+        },
+        onError: (error) => {
+          setErrorMsg(
+            error?.shortMessage ||
+              error?.message ||
+              "Wallet connection failed."
+          );
+          setStatus("error");
+        },
+      }
+    );
+  }, [connect, connectors]);
+
+  // ---------------------------------------------------
+  // AUTOMATIC SIGN AFTER CONNECTION
+  // ---------------------------------------------------
+
+  useEffect(() => {
+    if (status !== "connected" || !isConnected || !address) {
+      return;
+    }
+
+    if (autoSignStartedRef.current) return;
+
+    autoSignStartedRef.current = true;
+    handleSignAndVerify(address);
+  }, [status, isConnected, address, handleSignAndVerify]);
+
+  // ---------------------------------------------------
+  // RESET
+  // ---------------------------------------------------
+
+  const handleReset = useCallback(() => {
+    resetSignature();
+    disconnect();
+
+    setSignature(null);
+    setAuthMessage("");
+    setErrorMsg("");
+    setProfileChecking(false);
+
+    autoSignStartedRef.current = false;
+    setStatus("idle");
+  }, [resetSignature, disconnect]);
+
+  // ---------------------------------------------------
+  // CONNECTION ERROR
+  // ---------------------------------------------------
+
+  useEffect(() => {
+    if (!connectError) return;
+
+    setErrorMsg(
+      connectError?.shortMessage ||
+        connectError?.message ||
+        "Unable to connect wallet."
+    );
+
+    setStatus("error");
   }, [connectError]);
 
-  // ===================================================
+  // ---------------------------------------------------
   // STATUS
-  // ===================================================
+  // ---------------------------------------------------
 
   const isBusy =
     isConnecting ||
@@ -955,15 +555,8 @@ export default function OnboardingPage() {
     status === "verifying" ||
     profileChecking;
 
-  const isVerified =
-    status === "verified";
-
-  const isDenied =
-    status === "denied";
-
-  // ===================================================
-  // STAGE
-  // ===================================================
+  const isVerified = status === "verified";
+  const isDenied = status === "denied";
 
   let stageIndex = 0;
 
@@ -975,139 +568,71 @@ export default function OnboardingPage() {
     stageIndex = 1;
   }
 
-  if (status === "verified") {
+  if (status === "verified" || status === "denied") {
     stageIndex = 2;
   }
 
-  if (status === "denied") {
-    stageIndex = 2;
-  }
-
-  // ===================================================
-  // BUTTON LABEL
-  // ===================================================
-
-  let buttonLabel =
-    "Connect Wallet";
+  let buttonLabel = "Connect Wallet";
 
   if (status === "connecting") {
-    buttonLabel =
-      "Connecting Wallet…";
-  } else if (
-    status === "connected"
-  ) {
-    buttonLabel =
-      "Preparing Signature…";
-  } else if (
-    status === "signing"
-  ) {
-    buttonLabel =
-      "Waiting for Signature…";
-  } else if (
-    status === "verifying"
-  ) {
-    buttonLabel =
-      "Verifying ValutX Membership…";
-  } else if (
-    profileChecking
-  ) {
-    buttonLabel =
-      "Checking Community X Profile…";
-  } else if (
-    status === "denied"
-  ) {
-    buttonLabel =
-      "Try Another Wallet";
-  } else if (
-    status === "verified"
-  ) {
-    buttonLabel =
-      "Verification Complete";
+    buttonLabel = "Connecting Wallet…";
+  } else if (status === "connected") {
+    buttonLabel = "Preparing Signature…";
+  } else if (status === "signing") {
+    buttonLabel = "Waiting for Signature…";
+  } else if (status === "verifying") {
+    buttonLabel = "Verifying ValutX Membership…";
+  } else if (profileChecking) {
+    buttonLabel = "Checking Community X Profile…";
+  } else if (status === "denied") {
+    buttonLabel = "Try Another Wallet";
+  } else if (status === "verified") {
+    buttonLabel = "Verification Complete";
   }
 
-  // ===================================================
+  // ---------------------------------------------------
   // PRIMARY BUTTON
-  // ===================================================
+  // ---------------------------------------------------
 
-  const handlePrimaryClick =
-    () => {
-      if (isBusy) {
+  const handlePrimaryClick = () => {
+    if (isBusy) return;
+
+    if (status === "idle" || status === "error") {
+      if (isConnected && address) {
+        autoSignStartedRef.current = false;
+        setStatus("connected");
         return;
       }
 
-      // -----------------------------------------------
-      // INITIAL CONNECTION
-      // -----------------------------------------------
+      handleConnect();
+      return;
+    }
 
-      if (
-        status === "idle" ||
-        status === "error"
-      ) {
-        /*
-          If wallet is already connected,
-          start signing directly.
-        */
+    if (status === "denied") {
+      handleReset();
+    }
+  };
 
-        if (
-          isConnected &&
-          address
-        ) {
-          autoSignStartedRef.current =
-            false;
-
-          setStatus("connected");
-
-          return;
-        }
-
-        handleConnect();
-
-        return;
-      }
-
-      // -----------------------------------------------
-      // TRY ANOTHER WALLET
-      // -----------------------------------------------
-
-      if (status === "denied") {
-        handleReset();
-      }
-    };
-
-  // ===================================================
+  // ---------------------------------------------------
   // UI
-  // ===================================================
+  // ---------------------------------------------------
 
   return (
-    <div
-      className="cxo-page"
-      ref={wrapRef}
-    >
-      {/* PARTICLE BACKGROUND */}
-
+    <div className="cxo-page" ref={wrapRef}>
       <canvas
         ref={canvasRef}
         className="cxo-network-canvas"
         aria-hidden="true"
       />
 
-      <div
-        className="cxo-ambient"
-        aria-hidden="true"
-      />
+      <div className="cxo-ambient" aria-hidden="true" />
 
       <div className="container cxo-container">
         <div className="row justify-content-center align-items-center w-100 mx-0">
           <div className="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4 px-0">
-
-            {/* BRAND */}
-
             <div className="cxo-brand text-center">
               <span className="cxo-brand-mark">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
+                <svg viewBox="0 0 24 24" fill="none">
                   <path
                     d="M12 3L20 8V16L12 21L4 16V8L12 3Z"
                     stroke="#170812"
@@ -1118,44 +643,21 @@ export default function OnboardingPage() {
               </span>
 
               <span className="cxo-brand-word">
-                TGPS{" "}
-                <span>
-                  Community X
-                </span>
+                TGPS <span>Community X</span>
               </span>
             </div>
 
-            {/* MAIN CARD */}
-
             <div
-              className={`cxo-card${
-                isVerified
-                  ? " is-verified"
-                  : ""
-              }${
-                isBusy
-                  ? " is-busy"
-                  : ""
+              className={`cxo-card${isVerified ? " is-verified" : ""}${
+                isBusy ? " is-busy" : ""
               }`}
             >
-              <div
-                className="cxo-card-glow"
-                aria-hidden="true"
-              />
-
-              {/* =====================================
-                  ACCESS DENIED
-              ====================================== */}
+              <div className="cxo-card-glow" aria-hidden="true" />
 
               {isDenied ? (
                 <div className="cxo-success text-center">
-
                   <span className="cxo-success-ring">
-                    <span
-                      className="cxo-success-pulse"
-                      aria-hidden="true"
-                    />
-
+                    <span className="cxo-success-pulse" aria-hidden="true" />
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -1170,31 +672,21 @@ export default function OnboardingPage() {
                     </svg>
                   </span>
 
-                  <span className="cxo-result-badge">
-                    ACCESS DENIED
-                  </span>
-
-                  <h1>
-                    ValutX Membership Required
-                  </h1>
+                  <span className="cxo-result-badge">ACCESS DENIED</span>
+                  <h1>ValutX Membership Required</h1>
 
                   <p className="cxo-sub">
                     The wallet{" "}
                     <span className="cxo-mono">
-                      {truncateAddress(
-                        address
-                      )}
+                      {truncateAddress(address)}
                     </span>{" "}
-                    is not registered as a
-                    ValutX member.
+                    is not registered as a ValutX member.
                   </p>
 
                   <button
                     type="button"
                     className="cxo-secondary-btn"
-                    onClick={
-                      handleReset
-                    }
+                    onClick={handleReset}
                   >
                     Use Another Wallet
                   </button>
@@ -1205,14 +697,8 @@ export default function OnboardingPage() {
                 </div>
               ) : !isVerified ? (
                 <>
-
-                  {/* WALLET ICON */}
-
                   <div className="cxo-wallet-ring">
-                    <span
-                      className="cxo-wallet-ring-spin"
-                      aria-hidden="true"
-                    />
+                    <span className="cxo-wallet-ring-spin" aria-hidden="true" />
 
                     <span className="cxo-wallet-icon">
                       <svg
@@ -1221,16 +707,8 @@ export default function OnboardingPage() {
                         stroke="currentColor"
                         strokeWidth="1.7"
                       >
-                        <rect
-                          x="3"
-                          y="6.5"
-                          width="18"
-                          height="12.5"
-                          rx="2.5"
-                        />
-
+                        <rect x="3" y="6.5" width="18" height="12.5" rx="2.5" />
                         <path d="M3 10.2h18" />
-
                         <circle
                           cx="16.3"
                           cy="14.3"
@@ -1242,26 +720,16 @@ export default function OnboardingPage() {
                     </span>
                   </div>
 
-                  {/* HEADING */}
-
-                  <h1>
-                    Verify Community Access
-                  </h1>
+                  <h1>Verify Community Access</h1>
 
                   <p className="cxo-sub">
-                    Connect your Web3 wallet
-                    and sign a message to
-                    verify your ValutX
-                    membership.
+                    Connect your Web3 wallet and sign a message to verify your
+                    ValutX membership.
                   </p>
-
-                  {/* WALLET ADDRESS */}
 
                   <div
                     className={`cxo-input-wrapper${
-                      isConnected
-                        ? " is-filled"
-                        : ""
+                      isConnected ? " is-filled" : ""
                     }`}
                   >
                     <svg
@@ -1271,22 +739,13 @@ export default function OnboardingPage() {
                       strokeWidth="1.6"
                       className="cxo-input-icon"
                     >
-                      <rect
-                        x="3"
-                        y="6.5"
-                        width="18"
-                        height="12.5"
-                        rx="2.5"
-                      />
-
+                      <rect x="3" y="6.5" width="18" height="12.5" rx="2.5" />
                       <path d="M3 10.2h18" />
                     </svg>
 
                     <div className="cxo-wallet-address">
                       {address
-                        ? truncateAddress(
-                            address
-                          )
+                        ? truncateAddress(address)
                         : "Wallet not connected"}
                     </div>
 
@@ -1306,122 +765,73 @@ export default function OnboardingPage() {
                     )}
                   </div>
 
-                  {/* CONNECT → SIGN → VERIFIED */}
-
                   <div
                     className="cxo-chain"
                     role="status"
-                    aria-label={`Step ${
-                      stageIndex + 1
-                    } of 3`}
+                    aria-label={`Step ${stageIndex + 1} of 3`}
                   >
-                    {STAGES.map(
-                      (
-                        stage,
-                        index
-                      ) => (
-                        <React.Fragment
-                          key={stage}
+                    {STAGES.map((stage, index) => (
+                      <React.Fragment key={stage}>
+                        <div
+                          className={`cxo-chain-node${
+                            stageIndex > index ? " is-done" : ""
+                          }${
+                            stageIndex === index ? " is-active" : ""
+                          }`}
                         >
-                          <div
-                            className={`cxo-chain-node${
-                              stageIndex >
-                              index
-                                ? " is-done"
-                                : ""
-                            }${
-                              stageIndex ===
-                              index
-                                ? " is-active"
-                                : ""
+                          <span className="cxo-chain-dot" />
+                          <span className="cxo-chain-label">
+                            {stage === "connect"
+                              ? "Connect"
+                              : stage === "sign"
+                              ? "Sign"
+                              : "Verified"}
+                          </span>
+                        </div>
+
+                        {index < STAGES.length - 1 && (
+                          <span
+                            className={`cxo-chain-line${
+                              stageIndex > index ? " is-done" : ""
                             }`}
-                          >
-                            <span className="cxo-chain-dot" />
-
-                            <span className="cxo-chain-label">
-                              {stage ===
-                              "connect"
-                                ? "Connect"
-                                : stage ===
-                                  "sign"
-                                ? "Sign"
-                                : "Verified"}
-                            </span>
-                          </div>
-
-                          {index <
-                            STAGES.length -
-                              1 && (
-                            <span
-                              className={`cxo-chain-line${
-                                stageIndex >
-                                index
-                                  ? " is-done"
-                                  : ""
-                              }`}
-                            />
-                          )}
-                        </React.Fragment>
-                      )
-                    )}
+                          />
+                        )}
+                      </React.Fragment>
+                    ))}
                   </div>
-
-                  {/* PROCESS MESSAGE */}
 
                   {status === "signing" && (
                     <p className="cxo-sub">
-                      Please approve the
-                      signature request in
-                      your wallet.
+                      Please approve the signature request in your wallet.
                     </p>
                   )}
 
                   {status === "verifying" && (
                     <p className="cxo-sub">
-                      Verifying your wallet
-                      and ValutX membership...
+                      Verifying your wallet and ValutX membership...
                     </p>
                   )}
 
                   {profileChecking && (
                     <p className="cxo-sub">
-                      Checking your Community X
-                      profile...
+                      Checking your Community X profile...
                     </p>
                   )}
 
-                  {/* ERROR */}
-
-                  {errorMsg && (
-                    <p className="cxo-error">
-                      {errorMsg}
-                    </p>
-                  )}
-
-                  {/* MAIN BUTTON */}
+                  {errorMsg && <p className="cxo-error">{errorMsg}</p>}
 
                   <button
                     type="button"
                     className="cxo-btn"
-                    onClick={
-                      handlePrimaryClick
-                    }
+                    onClick={handlePrimaryClick}
                     disabled={isBusy}
                     aria-busy={isBusy}
                   >
                     {isBusy && (
-                      <span
-                        className="cxo-spinner"
-                        aria-hidden="true"
-                      />
+                      <span className="cxo-spinner" aria-hidden="true" />
                     )}
-
-                    <span>
-                      {buttonLabel}
-                    </span>
+                    <span>{buttonLabel}</span>
                   </button>
-
-                  {/* SECURITY NOTE */}
 
                   <p className="cxo-note">
                     <svg
@@ -1434,21 +844,13 @@ export default function OnboardingPage() {
                     >
                       <path d="M5 12L10 17L19 7" />
                     </svg>
-
                     Secure wallet verification
                   </p>
                 </>
               ) : (
-                /* VERIFIED */
-
                 <div className="cxo-success text-center">
-
                   <span className="cxo-success-ring">
-                    <span
-                      className="cxo-success-pulse"
-                      aria-hidden="true"
-                    />
-
+                    <span className="cxo-success-pulse" aria-hidden="true" />
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -1466,25 +868,18 @@ export default function OnboardingPage() {
                     VALUTX MEMBER VERIFIED
                   </span>
 
-                  <h1>
-                    Welcome to Community X
-                  </h1>
+                  <h1>Welcome to Community X</h1>
 
                   <p className="cxo-sub">
                     Your wallet{" "}
                     <span className="cxo-mono">
-                      {truncateAddress(
-                        address
-                      )}
+                      {truncateAddress(address)}
                     </span>{" "}
-                    is verified and your
-                    ValutX membership is
-                    confirmed.
+                    is verified and your ValutX membership is confirmed.
                   </p>
 
                   <p className="cxo-sub">
-                    Checking your Community X
-                    profile...
+                    Checking your Community X profile...
                   </p>
 
                   <div className="cxo-progress-bar">
@@ -1494,13 +889,9 @@ export default function OnboardingPage() {
               )}
             </div>
 
-            {/* FOOTER */}
-
             <p className="cxo-footnote text-center">
               Having trouble connecting?{" "}
-              <a href="#support">
-                Message an Admin
-              </a>
+              <a href="#support">Message an Admin</a>
             </p>
           </div>
         </div>

@@ -76,3 +76,81 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+
+/* =========================================================
+   RESPONSIVE CHAT INPUT — KEEP ATTACHMENT BUTTON VISIBLE
+   ========================================================= */
+
+.cxchat-chat-input-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.cxchat-input-icon-button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 40px;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
+  visibility: visible !important;
+  opacity: 1;
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.cxchat-input-wrapper {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0%;
+  min-width: 0;
+  width: 0;
+}
+
+.cxchat-message-input {
+  flex: 1 1 0%;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.cxchat-input-emoji-button,
+.cxchat-send-button {
+  flex-shrink: 0;
+}
+
+/* Mobile screens */
+@media (max-width: 768px) {
+  .cxchat-chat-input-form {
+    gap: 5px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .cxchat-input-icon-button {
+    display: inline-flex !important;
+    flex: 0 0 36px;
+    width: 36px;
+    min-width: 36px;
+    height: 38px;
+    padding: 0;
+  }
+
+  .cxchat-input-wrapper {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  .cxchat-message-input {
+    min-width: 0;
+    font-size: 16px;
+  }
+}
